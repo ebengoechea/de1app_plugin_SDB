@@ -1080,7 +1080,27 @@ proc ::plugins::SDB::update_shot_description { clock arr_new_settings } {
 		db eval "$sql"
 	}
 }
+
+# Hook executed after save_espresso_rating_to_history
+proc ::plugins::SDB::save_espresso_to_history_hook { args } {
+	variable settings 
 	
+	if { $::settings(history_saved) == 1 } {
+		msg "running save_espresso_to_history_hook "
+
+		if { $settings(db_persist_desc) == 1 || $settings(db_persist_series) == 1 } {
+			# We need the shot data in DYE::DB::persist_shot in an array that is a bit different from ::settings,
+			# e.g. "clock" is "espresso_clock" in the settings, chart series are not in ::settings but in other vars,
+			# we miss the filename and the modification time, and we need to build some variables with a priority
+			# (like dose may come from DSx vars or from base vars). So, rather than replicate everything, we just read
+			# the just-written file, which is not highly efficient but it's very straightforward.
+			#set fn "[homedir]/history/[clock format $::settings(espresso_clock) -format $::DYE::filename_clock_format].shot"
+			array set shot [load_shot $::settings(espresso_clock)]
+			persist_shot shot $settings(db_persist_desc) $settings(db_persist_series) 1
+		}
+	}
+}
+
 # Returns a list of available categories. "field_name" must be available in the data dictionary with 
 # 	data_type=category. Returns a list for single-column categories, and an array of lists for multi-column
 # 	categories such as equipment_name (which requires equipment_type).
