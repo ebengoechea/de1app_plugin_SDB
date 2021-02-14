@@ -125,7 +125,7 @@ proc ::plugins::SDB::check_settings {} {
 }
 
 proc ::plugins::SDB::msg { msg } {
-	::msg "SDB: $msg"
+	::msg "::plugins::SDB: $msg"
 }
 
 # Logs SQL statements
@@ -685,13 +685,16 @@ proc ::plugins::SDB::upgrade { {update_screen 0} } {
 	
 # Closes the shot SQLite database.
 # Add unnecessary { args } for this to work on trace add execution.
-proc ::plugins::SDB::db_close { args } {
-	variable db
-	db close
-	# Likely unnecessary, but was experiencing some problems when creating the CFG page.
-	pause 1000
-	unset -nocomplain db
-	set db {}
+proc ::plugins::SDB::db_close { args } {	
+	if { [info exists ::plugins::SDB::db] } {
+		if { [catch {
+			variable db
+			db close
+		} err ] != 0 } {
+			msg "ERROR while trying to close the database: $err"
+		}		
+		unset -nocomplain ::plugins::SDB::db
+	}
 }
 
 	
