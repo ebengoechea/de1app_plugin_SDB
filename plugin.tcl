@@ -75,6 +75,12 @@ namespace eval ::plugins::SDB {
 		beverage_type {"Beverage type" "Beverage types" "Bev type" "Bev types" \
 			"" shot "" "" "" beverage_type category 0 0 0}
 	}	
+	
+	namespace export string2sql strings2sql field_lookup field_names \
+		get_shot_file_path load_shot modify_shot_file \
+		get_db db_close persist_shot update_shot_description \
+		available_categories shots_using_category update_category previous_values \
+		has_shot_series_data
 }
 
 proc ::plugins::SDB::main {} {
