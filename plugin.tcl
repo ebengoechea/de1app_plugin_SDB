@@ -91,11 +91,19 @@ proc ::plugins::SDB::main {} {
 }
 
 proc ::plugins::SDB::init {} {
-	create
-	trace add execution app_exit {enter} { ::plugins::SDB::db_close }
-	populate
+	variable settings
 	
-	# Ensure the description summary is updated whenever last shot is saved to history
+	set is_created [create]	
+	trace add execution app_exit {enter} { ::plugins::SDB::db_close }
+	
+	if { $is_created || $settings(sync_on_startup) } {
+		populate
+	}
+	
+	# Ensure the description summary is updated whenever last shot is saved to history.
+	# We don't use 'register_state_change_handler' as that would not update the shot file if its metadata is 
+	#	changed in the Godshots page in Insight or DSx (though currently that does not work)
+	#register_state_change_handler Espresso Idle ::plugins::SDB::save_espresso_to_history_hook
 	trace add execution ::save_this_espresso_to_history leave ::plugins::SDB::save_espresso_to_history_hook
 }
 
@@ -114,6 +122,8 @@ proc ::plugins::SDB::check_settings {} {
 	ifexists settings(backup_modified_shot_files) 0
 	ifexists settings(db_persist_desc) 1
 	ifexists settings(db_persist_series) 0
+	ifexists settings(sync_on_startup) 1
+	ifexists settings(log_sql_statements) 0
 	ifexists settings(github_latest_url) "https://api.github.com/repos/ebengoechea/de1app_plugin_SDB/releases/latest"
 	
 	if { ![info exists settings(last_sync_clock)] } {
@@ -129,11 +139,11 @@ proc ::plugins::SDB::msg { msg } {
 }
 
 # Logs SQL statements
-proc ::plugins::SDB::log_sql_statement { sql } {
-	msg $sql
-#	set msg_txt "$: $sql\r"
-#	append msg_txt [uplevel {subst $sql}]
-#	msg $msg_txt
+proc ::plugins::SDB::log_sql { sql } {
+	variable settings
+	if { $settings(log_sql_statements) } {
+		msg "SQL $sql"
+	}
 }
 
 # Embed text string in single quotes and escape any SQL character that may produce problems: duplicate single quotes.
@@ -440,6 +450,7 @@ proc ::plugins::SDB::modify_shot_file { path arr_new_settings { backup_file {} }
 }
 
 # Creates the SQLite shot database from scratch.
+# Returns 1 if the database is actually (re)created, 0 otherwise. 
 proc ::plugins::SDB::create { {recreate 0} {make_backup 1} {update_screen 0} } {
 	variable db
 	variable updating_db
@@ -463,7 +474,7 @@ proc ::plugins::SDB::create { {recreate 0} {make_backup 1} {update_screen 0} } {
 			upgrade $update_screen
 #			after 3000 { set progress_msg "" }
 			set updating_db 0
-			return
+			return 0
 		}
 	}
 	
@@ -475,9 +486,9 @@ proc ::plugins::SDB::create { {recreate 0} {make_backup 1} {update_screen 0} } {
 	
 	sqlite3 db $db_path -create 1
 	
-	# Seems the PC undrowith version was not compiled to allow foreign key enforcement
+	# Seems the PC undrowish version was not compiled to allow foreign key enforcement
 	#db config enable_fkey 1
-	# Just use empty strings {}, which are traslated to NULL
+	# Just use empty strings {}, which are translated to NULL
 	#db nullvalue NULL
 
 	db eval { PRAGMA user_version = 0 } 	
@@ -485,6 +496,7 @@ proc ::plugins::SDB::create { {recreate 0} {make_backup 1} {update_screen 0} } {
 #	after 3000 { set progress_msg "" }
 	
 	set updating_db 0
+	return 1
 }
 
 # Grab the reference to the shots database. 
@@ -494,14 +506,16 @@ proc ::plugins::SDB::get_db {} {
 	
 	if { $db eq {} } { 
 		sqlite3 db "[homedir]/$settings(db_path)" -create 0
-		if { [ifexists ::debugging 0] == 1 } {
-			db trace ::plugins::SDB::log_sql_statement
+		# According to documentation, 'db trace' should get you the SQL statements after variable substitution is done,
+		# but it's not the case, so we need to log manually on every statement if we want to have the actual statement. 
+		if { $settings(log_sql_statements) == 1 } {
+			db trace ::plugins::SDB::log_sql
 		}
 	}
 	return $db
 }
 
-# Detects whether the current shots database schema is from an earlier version of the DYE plugin and upgrades its
+# Detects whether the current shots database schema is from an earlier version of the plugin and upgrades its
 # structure if needed. Also used to create the database schema incrementally from scratch.
 proc ::plugins::SDB::upgrade { {update_screen 0} } {
 	set db [get_db]
@@ -775,9 +789,11 @@ proc ::plugins::SDB::populate { {persist_desc {}} { persist_series {}} {update_s
 	variable friendly_clock_format
 	set db [get_db]
 	
-	set updating_db 1
 	if { $persist_desc eq "" } { set persist_desc $settings(db_persist_desc) }
 	if { $persist_series eq "" } { set persist_series $settings(db_persist_series) }
+	if { !$persist_desc && !$persist_series } return
+
+	set updating_db 1	
 	set screen_msg [translate "Synchronizing DB"]
 	set progress_msg $screen_msg
 	
@@ -805,7 +821,7 @@ proc ::plugins::SDB::populate { {persist_desc {}} { persist_series {}} {update_s
 			set fmtime [file mtime "[homedir]/history/$f"]
 			set db_mtime [lindex $db_shots($f) 1]
 			if { $fmtime > $db_mtime } {
-				msg "Processing history/$f, as modif time ($fmtime=[clock format $fmtime -format $friendly_clock_format]) > DB modif time ($db_mtime=[clock format $db_mtime -format $friendly_clock_format])"
+				log_sql "Processing history/$f, as modif time ($fmtime=[clock format $fmtime -format $friendly_clock_format]) > DB modif time ($db_mtime=[clock format $db_mtime -format $friendly_clock_format])"
 				array set shot [load_shot "[homedir]/history/$f"]
 				persist_shot shot $persist_desc $persist_series 0
 				incr cnt_modified
@@ -814,7 +830,7 @@ proc ::plugins::SDB::populate { {persist_desc {}} { persist_series {}} {update_s
 				set shot_clock [lindex $db_shots($f) 0]
 				set shot_has_series [db exists {SELECT 1 FROM shot_series WHERE shot_clock=$shot_clock LIMIT 1}]
 				if { $shot_has_series != 1 } {
-					msg "Processing history/$f, as it needs its chart series added"
+					log_sql "Processing history/$f, as it needs its chart series added"
 					array set shot [load_shot "[homedir]/history/$f"]
 				
 					persist_shot shot 0 1 0
@@ -833,15 +849,14 @@ proc ::plugins::SDB::populate { {persist_desc {}} { persist_series {}} {update_s
 			}
 			if { $sql ne "" } {
 				set sql "UPDATE shot SET [string range $sql 0 end-1] WHERE clock=[lindex $db_shots($f) 0]"
-				msg "$sql"
 				db eval "$sql"
 				set something_changed 1
 			} 
 			if { $something_changed == 0 } {
-				msg "shot file history/$f does not need any updating"
+				log_sql "shot file history/$f does not need any updating"
 			}
 		} else {
-			msg "Processing history/$f, as it's a new shot file not yet in the database"
+			log_sql "Processing history/$f, as it's a new shot file not yet in the database"
 			array set shot [load_shot "[homedir]/history/$f"]
 			persist_shot shot $persist_desc $persist_series 0
 			if { $update_screen == 1 } update
@@ -863,7 +878,7 @@ proc ::plugins::SDB::populate { {persist_desc {}} { persist_series {}} {update_s
 			set fmtime [file mtime "[homedir]/history_archive/$f"]
 			set db_mtime [lindex $db_shots($f) 1]
 			if { $fmtime > $db_mtime } {
-				msg "Processing history_archive/$f, as modif time ($fmtime=[clock format $fmtime -format $friendly_clock_format]) > DB modif time ($db_mtime=[clock format $db_mtime -format $friendly_clock_format])"
+				log_sql "Processing history_archive/$f, as modif time ($fmtime=[clock format $fmtime -format $friendly_clock_format]) > DB modif time ($db_mtime=[clock format $db_mtime -format $friendly_clock_format])"
 				array set shot [load_shot "[homedir]/history_archive/$f"]
 				persist_shot shot $persist_desc $persist_series 0
 				incr cnt_modified
@@ -872,7 +887,7 @@ proc ::plugins::SDB::populate { {persist_desc {}} { persist_series {}} {update_s
 				set shot_clock [lindex $db_shots($f) 0]
 				set shot_has_series [db exists {SELECT 1 FROM shot_series WHERE shot_clock=$shot_clock LIMIT 1}]
 				if { $shot_has_series != 1 } {
-					msg "Processing history/$f, as it needs its chart series added"
+					log_sql "Processing history/$f, as it needs its chart series added"
 					array set shot [load_shot "[homedir]/history_archive/$f"]
 					persist_shot shot 0 1 0
 					incr cnt_modified
@@ -890,15 +905,14 @@ proc ::plugins::SDB::populate { {persist_desc {}} { persist_series {}} {update_s
 			}
 			if { $sql ne "" } {
 				set sql "UPDATE shot SET [string range $sql 0 end-1] WHERE clock=[lindex $db_shots($f) 0]"
-				msg "$sql"
 				db eval "$sql"
 				set something_changed 1
 			}
 			if { $something_changed == 1 } {
-				msg "Shot file history/$f does not need any updating"
+				log_sql "Shot file history/$f does not need any updating"
 			}			
 		} else {
-			msg "Processing history_archive/$f, as it's a new shot file not yet in the database"
+			log_sql "Processing history_archive/$f, as it's a new shot file not yet in the database"
 			array set shot [load_shot "[homedir]/history_archive/$f"]
 			persist_shot shot $persist_desc $persist_series 0
 			incr cnt_inserted
@@ -917,12 +931,11 @@ proc ::plugins::SDB::populate { {persist_desc {}} { persist_series {}} {update_s
 	foreach f [array names db_shots] {
 		if { [llength $db_shots($f)] < 5 } { 
 			lappend rm_clocks [lindex $db_shots($f) 0]
-			msg "Shot file $f removed from history and history_archive"
+			log_sql "Shot file $f removed from history and history_archive"
 		}
 	}
 	if { [llength $rm_clocks] > 0} {
 		set sql "UPDATE shot SET removed=1 WHERE clock IN ([join $rm_clocks ,]) AND removed=0"
-		msg "$sql"
 		db eval "$sql"
 		set cnt_removed [db changes]
 	}
@@ -938,8 +951,8 @@ proc ::plugins::SDB::populate { {persist_desc {}} { persist_series {}} {update_s
 	foreach fn "inserted modified archived unarchived removed unremoved" {
 		set settings(last_sync_$fn) [subst \$cnt_$fn]
 	}	
-	save_plugin_settings SDB
 	
+	save_plugin_settings SDB
 	set updating_db 0
 }
 
@@ -1095,8 +1108,6 @@ proc ::plugins::SDB::save_espresso_to_history_hook { args } {
 	variable settings 
 	
 	if { $::settings(history_saved) == 1 } {
-		msg "running save_espresso_to_history_hook "
-
 		if { $settings(db_persist_desc) == 1 || $settings(db_persist_series) == 1 } {
 			# We need the shot data in DYE::DB::persist_shot in an array that is a bit different from ::settings,
 			# e.g. "clock" is "espresso_clock" in the settings, chart series are not in ::settings but in other vars,
@@ -1295,7 +1306,6 @@ proc ::plugins::SDB::update_category { field_name old_value new_value { update_f
 		# Update in database
 		if { $settings(db_persist_desc) == 1 } {
 			set sql "UPDATE shot SET file_modification_date=COALESCE($fmtime,file_modification_date), $field_name=[string2sql $new_value] WHERE clock=[lindex $clocks $i]"
-			msg "$sql"
 			db eval "$sql"
 		}
 		
@@ -1421,7 +1431,6 @@ proc ::plugins::SDB::NEW_update_category { field_name old_value new_value { use_
 					if { $db_type_column2 ne "" && [llength $args] > 1 } {
 						append sql "AND $db_type_column2=[string2sql [lindex $args 1]] " 
 					}						
-					# msg "$sql
 					db eval "$sql"
 				}
 			}
