@@ -10,3 +10,4 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 - Remade db_close to prevent runtime errors if called more than once.
 - Define which procs are namespace-exported.
 - New settings 'sync_on_startup' and 'log_sql_statements'.
+- Added settings page.
