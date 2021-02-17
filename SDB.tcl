@@ -1128,6 +1128,46 @@ proc ::plugins::SDB::save_espresso_to_history_hook { args } {
 	}
 }
 
+# Returns shots data.  
+# 'return_what' is a list of column names to return, or 'count' for just the number of shots. If a single column
+#	is requested, a list is returned. If more than one column is returned, returns an array with one list per 
+#	column.
+# 'args' provide 'type' values that must be matched in the target db table (e.g. for an equipment item, its equipment type).
+proc ::plugins::SDB::shots { {return_columns clock} {exc_removed 1} {filter {}} {max_rows 500} } {
+	set db [get_db]
+	
+	if { $return_columns eq "count" } { 
+		set sql "SELECT COUNT(clock) "
+	} else { 
+		set sql "SELECT [join $return_columns ,] "
+	}
+	append sql "FROM V_shot "
+	if { $exc_removed == 1 || $filter ne "" } {
+		append sql "WHERE "
+		if { $exc_removed == 1 } { append sql "removed=0 AND " }
+		if { $filter ne "" } { append sql "$filter AND " }
+		set sql [string range $sql 0 end-4]
+	}
+	append sql " ORDER BY clock DESC LIMIT $max_rows"
+		
+	if { [llength $return_columns] == 1 } {
+		return [db eval "$sql"]
+	} else {
+		array set result {}		
+		set i 0 
+		db eval "$sql" values {
+			if { $i == 0 } {
+				foreach fn $values(*) { set result($fn) {} }
+			}
+			foreach fn $values(*) { 
+				lappend result($fn) $values($fn)
+			}
+			incr i
+		}		
+		return [array get result]
+	}
+}
+
 # Returns a list of available categories. "field_name" must be available in the data dictionary with 
 # 	data_type=category. Returns a list for single-column categories, and an array of lists for multi-column
 # 	categories such as equipment_name (which requires equipment_type).
