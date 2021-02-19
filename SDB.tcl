@@ -5,7 +5,7 @@
 namespace eval ::plugins::SDB {
 	variable author "Enrique Bengoechea"
 	variable contact "enri.bengoechea@gmail.com"
-	variable version 1.1
+	variable version 1.01
 	variable name [translate "Shot DataBase"]
 	variable description "Keeps your shot history in a SQLite database, and provides functions to manage shot history files."
 
