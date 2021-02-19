@@ -2,6 +2,13 @@
 
 Format based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
+## [1.01] - 2021-02-? (Bundled with DE1app 1.34.?)
+
+### Changed
+- Data dictionary functions moved to DGUI plugin, to avoid circular dependencies.
+- Init proc moved to main.
+- Handle dependencies using the proposed changes to the extensions system.
+
 ## [1.00] - 2021-02-17 (Bundled with DE1app 1.34.11)
 
 ### Changed

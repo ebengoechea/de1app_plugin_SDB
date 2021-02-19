@@ -5,8 +5,9 @@
 namespace eval ::plugins::SDB {
 	variable author "Enrique Bengoechea"
 	variable contact "enri.bengoechea@gmail.com"
-	variable version 1.0
-	variable description "'Shots DataBase' stores your shot history in a SQLite database, and provides functions to manage shot history files."
+	variable version 1.1
+	variable name [translate "Shot DataBase"]
+	variable description "Keeps your shot history in a SQLite database, and provides functions to manage shot history files."
 
 	variable db {}
 	variable updating_db 0
@@ -18,88 +19,16 @@ namespace eval ::plugins::SDB {
 	
 	variable progress_msg {}
 	
-	# DATA DICTIONARY CONVENTIONS:
-	#  * The column name in the shot table or the lookup table must be identical to the array item key.
-	#  * The shot_field is the variable name in the shot file, settings section. May not match the array item key in 
-	#		cases like 'other_equipment'.
-	#  * desc_section has to be one of bean, bean_batch, equipment, extraction or people.
-	#  * data_type has to be one of text, long_text, category, numeric or date.
-	variable field_lookup_whats {name name_plural short_name short_name_plural \
-		desc_section db_table lookup_table db_type_column1 db_type_column2 shot_field data_type \
-		min_value max_value n_decimals default_value small_increment big_increment
-	}
-		
-	variable data_dictionary
-	array set data_dictionary {
-		profile_title {"Profile" "Profiles" "Profile" "Profiles" \
-			"" shot "" "" "" profile_title category 0 0 0}
-		bean_desc {"Beans" "Beans" "Beans" "Beans" \
-			bean V_shot "" "" "" bean_brand||bean_type category 0 0 0}
-		bean_brand {"Beans roaster" "Beans roasters" "Roaster" "Roasters" \
-			bean shot "" "" "" bean_brand category 0 0 0}
-		bean_type {"Beans type" "Beans types" "Name" "Names" \
-			bean shot "" "" "" bean_type category 0 50 0}
-		bean_notes {"Beans notes" "Beans notes" "Note" "Notes" \
-			bean_batch shot "" "" "" bean_notes long_text 0 1000 0}
-		roast_date {"Roast date" "Roast dates" "Date" "Dates" \
-			bean_batch shot "" "" "" roast_date date 0 0 0}
-		roast_level {"Roast level" "Roast levels" "Level" "Levels" \
-			bean_batch shot "" "" "" roast_level category 0 50 0}
-		grinder_model {"Grinder name" "Grinder names" "Grinder" "Grinders" \
-			equipment shot "" "" "" grinder_model category 0 100 0}
-		grinder_setting {"Grinder setting" "Grinder settings" "Setting" "Settings" \
-			equipment shot "" "" "" grinder_setting category 0 100 0}
-		grinder_dose_weight {"Dose weight" "Dose weights" "Dose" "Doses" \
-			extraction shot "" "" "" grinder_dose_weight numeric 0 30 1 18 0.1 1.0}
-		drink_weight {"Drink weight" "Drink weights" "Weight" "Weights" \
-			extraction shot "" "" "" drink_weight numeric 0 500 1 36 1.0 10.0}
-		drink_tds {"Total Dissolved Solids (TDS %)" "Total Dissolved Solids %" "TDS" "TDS" \
-			extraction shot "" "" "" drink_tds numeric 0 15 2 8 0.01 0.1}
-		drink_ey {"Extraction Yield (EY %)" "Extraction Yields %" "EY" "EYs" \
-			extraction shot "" "" "" drink_ey numeric 0 30 2 20 0.1 1.0}	
-		espresso_enjoyment {"Enjoyment (0-100)" "Enjoyments" "Enjoyment" "Enjoyment" \
-			extraction shot "" "" "" espresso_enjoyment numeric 0 100 0 50 1 10}
-		espresso_notes {"Notes" "Notes" "Notes" "Notes" \
-			extraction shot "" "" "" espresso_notes long_text 0 1000 0}	
-		my_name {"Barista" "Baristas" "Barista" "Baristas" \
-			people shot "" "" "" my_name category 0 100 0 people}
-		drinker_name {"Drinker" "Drinkers" "Drinker" "Drinkers" \
-			people shot "" "" "" drinker_name category 0 100 0}
-		skin {"Skin" "Skins" "Skin" "Skins" \
-			"" shot "" "" "" skin category 0 0 0}
-		beverage_type {"Beverage type" "Beverage types" "Bev type" "Bev types" \
-			"" shot "" "" "" beverage_type category 0 0 0}
-	}	
-	
-	namespace export string2sql strings2sql field_lookup field_names \
-		get_shot_file_path load_shot modify_shot_file \
+	namespace export string2sql strings2sql get_shot_file_path load_shot modify_shot_file \
 		get_db db_close persist_shot update_shot_description \
 		available_categories shots_using_category update_category previous_values \
 		has_shot_series_data
 }
 
 proc ::plugins::SDB::main {} {
-	msg "Starting the 'Shots DataBase' plugin"
-	check_settings
-	init
-	save_plugin_settings SDB
-}
-
-# Paint settings screen
-proc ::plugins::SDB::preload {} {
-	if { [lsearch -exact [available_plugins] DGUI] > -1 } {
-		if { [plugin_enabled DGUI] } { 
-			load_plugin DGUI
-		} else { return }
-	} else { return }
-	
-	::plugins::SDB::CFG::setup_ui	
-	return "::plugins::SDB::CFG"
-}
-
-proc ::plugins::SDB::init {} {
 	variable settings
-	
+	msg "Starting the 'Shots DataBase' plugin"
+
 	set is_created [create]	
 	trace add execution app_exit {enter} { ::plugins::SDB::db_close }
 	
@@ -111,7 +40,27 @@ proc ::plugins::SDB::init {} {
 	# We don't use 'register_state_change_handler' as that would not update the shot file if its metadata is 
 	#	changed in the Godshots page in Insight or DSx (though currently that does not work)
 	#register_state_change_handler Espresso Idle ::plugins::SDB::save_espresso_to_history_hook
-	trace add execution ::save_this_espresso_to_history leave ::plugins::SDB::save_espresso_to_history_hook
+	trace add execution ::save_this_espresso_to_history leave ::plugins::SDB::save_espresso_to_history_hook		
+}
+
+# Paint settings screen
+proc ::plugins::SDB::preload {} {
+	msg "Preloading the 'Shots DataBase' plugin"
+	check_settings	
+	save_plugin_settings SDB
+
+	if { [plugin_available DGUI] } {
+		plugin_preload DGUI	
+		::plugins::SDB::CFG::setup_ui
+		return "::plugins::SDB::CFG"
+	} else {
+		return ""
+	}
+}
+
+proc ::plugins::SDB::init {} {
+	variable settings
+	
 }
 
 proc ::plugins::SDB::check_settings {} {
@@ -126,8 +75,8 @@ proc ::plugins::SDB::check_settings {} {
 		set settings(db_path) "[plugin_directory]/SDB/shots.db"
 	}
 	
-	ifexists settings(backup_modified_shot_files) 0
-	ifexists settings(db_persist_desc) 1
+	ifexists settings(backup_modified_shot_files) 0	
+	ifexists settings(db_persist_desc) 1	
 	ifexists settings(db_persist_series) 0
 	ifexists settings(sync_on_startup) 1
 	ifexists settings(log_sql_statements) 0
@@ -168,66 +117,6 @@ proc ::plugins::SDB::string2sql { text } {
 	#return "'[regsub -all {'} $text {''}]'"
 	return "'[string map {' ''} $text]'"
 } 
-
-# Looks up fields metadata in the data dictionary. 'what' can be a list with multiple items, then a list is returned.
-proc ::plugins::SDB::field_lookup { field {what name} } {
-	variable data_dictionary
-	variable field_lookup_whats
-	
-	if { $field eq "" } return
-	
-	if { ![info exists data_dictionary($field)] } { 
-		msg "WARNING data field '$field' unmatched in proc field_lookup"
-		return {} 		
-	}
-	
-	set result {}
-	foreach whatpart $what {
-		set match_idx [lsearch -all $field_lookup_whats $whatpart]
-		if { $match_idx == -1 } { 
-			msg "WARNING what item '$whatpart' unmatched in proc field_lookup"
-			lappend result {}
-		} else {
-			lappend result [lindex $data_dictionary($field) $match_idx]
-		}
-	}
-
-	if { [llength $result] == 1 } { set result [lindex $result 0] }
-	return $result
-}
-
-proc ::plugins::SDB::field_names { {data_types {} } {db_tables {}} } {
-	variable data_dictionary
-	variable field_lookup_whats
-	
-	if { $data_types eq "" && $db_tables eq "" } {
-		return [array names data_dictionary]
-	} 
-	
-	if { $data_types eq "" } {
-		set dt_idx -1
-	} else { 
-		set dt_idx [lsearch -all $field_lookup_whats "data_type"]
-	}
-	if { $db_tables eq "" } {
-		set tab_idx -1
-	} else {
-		set tab_idx [lsearch -all $field_lookup_whats "db_table"]
-	}
-	
-	set fields {}	
-	foreach fn [array names data_dictionary] {
-		set data_type [lindex $data_dictionary($fn) $dt_idx]
-		set db_table [lindex $data_dictionary($fn) $tab_idx]
-		
-		set matches_dt [expr {$dt_idx == -1 || [lsearch -all $data_types $data_type] > -1 }]
-		set matches_tab [expr {$tab_idx == -1 || [lsearch -all $db_tables $db_table] > -1 }]
-		if { $matches_dt && $matches_tab } { lappend fields $fn }
-	}
-	
-	return $fields
-}
-
 
 # Builds a full path to a shot file and returns the path if the file exists, otherwise an empty string.
 # If the filename happens to be an integer number, it is assumed it's a clock rather than a filename, and it is
@@ -1178,7 +1067,7 @@ proc ::plugins::SDB::shots { {return_columns clock} {exc_removed 1} {filter {}} 
 proc ::plugins::SDB::available_categories { field_name {exc_removed_shots 1} {filter {}} {use_lookup_table 1} args } {
 	set db [get_db]	
 	
-	lassign [field_lookup $field_name {data_type db_table lookup_table db_type_column1 db_type_column2}] \
+	lassign [::plugins::DGUI::field_lookup $field_name {data_type db_table lookup_table db_type_column1 db_type_column2}] \
 		data_type db_table lookup_table db_type_column1 db_type_column2 
 	if { $data_type ne "category" } return
 	if { $use_lookup_table == 1 && $lookup_table eq "" } { set use_lookup_table 0 }	
@@ -1195,7 +1084,7 @@ proc ::plugins::SDB::available_categories { field_name {exc_removed_shots 1} {fi
 		lappend fields "TRIM($db_type_column1) AS $db_type_column1" 
 		lappend grouping_fields "TRIM($db_type_column1)"
 		if { $use_lookup_table == 1 } {							
-			lassign [field_lookup $db_type_column1 {lookup_table}] type1_db_table 
+			lassign [::plugins::DGUI::field_lookup $db_type_column1 {lookup_table}] type1_db_table 
 			if { $type1_db_table ne "" } {
 				append extra_from "LEFT JOIN $type1_db_table ON $db_type_column1=${type1_db_table}.$db_type_column1 "
 			}
@@ -1271,7 +1160,7 @@ proc ::plugins::SDB::available_categories { field_name {exc_removed_shots 1} {fi
 proc ::plugins::SDB::shots_using_category { field_name value {return_what clock} args } {
 	set db [get_db]
 	
-	lassign [field_lookup $field_name {data_type db_table db_type_column1 db_type_column2}] \
+	lassign [::plugins::DGUI::field_lookup $field_name {data_type db_table db_type_column1 db_type_column2}] \
 		data_type db_table db_type_column1 db_type_column2
 	if { $data_type ne "category" } { return {} }
 	
@@ -1399,7 +1288,7 @@ proc ::plugins::SDB::NEW_update_category { field_name old_value new_value { use_
 	
 	if { [string trim $old_value] eq "" || $old_value eq $new_value } { return }
 	set new_value [string trim $new_value]
-	lassign [field_lookup $field_name {data_type db_table db_type_column1 db_type_column2 \
+	lassign [::plugins::DGUI::field_lookup $field_name {data_type db_table db_type_column1 db_type_column2 \
 		shot_field lookup_table desc_section}] \
 		data_type db_table db_type_column1 db_type_column2 shot_field lookup_table desc_section
 	if { $data_type ne "category" } { return }
@@ -1591,7 +1480,7 @@ proc ::plugins::SDB::add_category { field_name new_value {type1 {}} {type2 {}} a
 	set new_value [string trim $new_value]
 	if { $new_value eq "" } { return 0 }
 	
-	lassign [field_lookup $field_name {data_type db_type_column1 db_type_column2 lookup_table}] \
+	lassign [::plugins::DGUI::field_lookup $field_name {data_type db_type_column1 db_type_column2 lookup_table}] \
 		data_type db_type_column1 db_type_column2 lookup_table
 	if { $data_type ne "category" } { return }
 	
@@ -1641,7 +1530,7 @@ proc ::plugins::SDB::remove_category { field_name value {type1 {}} {type2 {}} } 
 	set n_shots [shots_using_category $field_name $value "count" $type1 $type2]
 	if { $n_shots > 0 } { return 0 }
 	
-	lassign [field_lookup $field_name {data_type db_type_column1 db_type_column2 lookup_table}] \
+	lassign [::plugins::DGUI::field_lookup $field_name {data_type db_type_column1 db_type_column2 lookup_table}] \
 		data_type db_type_column1 db_type_column2 lookup_table
 	if { $data_type ne "category" } { return }
 	
@@ -1673,7 +1562,7 @@ proc ::plugins::SDB::n_shots_without_series {} {
 # List of distinct (previously typed) values of any category field. 
 proc ::plugins::SDB::previous_values { field_name {exc_removed_shots 1} {filter {}} {max_items 500} } {
 	set db [get_db]	
-	lassign [field_lookup $field_name {data_type db_table lookup_table db_type_column1 db_type_column2}] \
+	lassign [::plugins::DGUI::field_lookup $field_name {data_type db_table lookup_table db_type_column1 db_type_column2}] \
 		data_type db_table lookup_table db_type_column1 db_type_column2 
 	if { $data_type eq "" } {
 		msg "ERROR in proc previous_values, field_name '$field_name' not found in data dictionary"
@@ -1765,7 +1654,7 @@ proc ::plugins::SDB::CFG::setup_ui {} {
 	
 	# LEFT SIDE
 	set x_label 200
-
+	
 	::plugins::DGUI::add_checkbox $page ::plugins::SDB::settings(db_persist_desc) $x_label [incr y 100] \
 		::plugins::SDB::CFG::db_persist_desc_change -use_page_var 0 -widget_name db_persist_desc \
 		-label [translate "Store shot descriptions on database"]
@@ -1824,7 +1713,7 @@ proc ::plugins::SDB::CFG::setup_ui {} {
 
 proc ::plugins::SDB::CFG::db_persist_desc_change {} {
 	set ns [namespace current]
-		
+msg "CFG::DB_persist_desc_change, value=$::plugins::SDB::settings(db_persist_desc)"	
 	save_plugin_settings SDB
 }
 
@@ -1956,7 +1845,7 @@ proc ::plugins::SDB::CFG::resync_db {} {
 
 proc ::plugins::SDB::CFG::page_done {} {
 	say [translate {Done}] $::settings(sound_button_in)
-	fill_extensions_listbox
+#	fill_extensions_listbox
 	page_to_show_when_off extensions
-	set_extensions_scrollbar_dimensions
+#	set_extensions_scrollbar_dimensions
 }
