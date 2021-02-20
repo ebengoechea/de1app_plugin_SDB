@@ -187,7 +187,7 @@ proc ::plugins::SDB::load_shot { filename } {
 	array set file_sets $file_props(settings)
 	
 	
-	set text_fields [field_names "category text long_text" "shot"]
+	set text_fields [::plugins::DGUI::field_names "category text long_text" "shot"]
 	lappend text_fields profile_title skin beverage_type
 	foreach field_name $text_fields {
 		if { [info exists file_sets($field_name)] == 1 } {
@@ -197,7 +197,7 @@ proc ::plugins::SDB::load_shot { filename } {
 		}
 	}
 	
-	foreach field_name [field_names "numeric" "shot"] {
+	foreach field_name [::plugins::DGUI::field_names "numeric" "shot"] {
 		if { [info exists file_sets($field_name)] == 1 && $file_sets($field_name) > 0 } {
 			set shot_data($field_name) $file_sets($field_name)
 		} else {
@@ -1629,12 +1629,9 @@ namespace eval ::plugins::SDB::CFG {
 
 # Added to context actions, so invoked automatically whenever the page is loaded
 proc ::plugins::SDB::CFG::show_page {} {
-#	variable widgets
-#	::plugins::DGUI::relocate_text_wrt $widgets(see_visualizer_pwd) $widgets(visualizer_password) e 10 0 w \
-#		$widgets(see_visualizer_pwd_button)
-#	$widgets(visualizer_password) configure -show "*"
-#	auto_upload_to_visualizer_change
-#	update_plugin_state	
+	if { ![plugin_enabled SDB] } {
+		::plugins::DGUI::disable_widgets "resync_db* rebuild_db*" [namespace current] 
+	}
 }
 
 proc ::plugins::SDB::CFG::setup_ui {} {
@@ -1712,13 +1709,14 @@ proc ::plugins::SDB::CFG::setup_ui {} {
 }
 
 proc ::plugins::SDB::CFG::db_persist_desc_change {} {
-	set ns [namespace current]
-msg "CFG::DB_persist_desc_change, value=$::plugins::SDB::settings(db_persist_desc)"	
+	#set ns [namespace current]	
 	save_plugin_settings SDB
 }
 
 proc ::plugins::SDB::CFG::db_persist_series_change {} {
 	set ns [namespace current]
+	save_plugin_settings SDB	
+	if { ![plugin_enabled SDB] } return
 	
 	if { $::plugins::SDB::updating_db == 1 } {
 		set ::plugins::SDB::CFG::data(db_status_msg) [translate "Database busy. Try later"]
@@ -1726,8 +1724,6 @@ proc ::plugins::SDB::CFG::db_persist_series_change {} {
 		after 3000 { set ::plugins::SDB::CFG::data(db_status_msg) "" }
 		return
 	}
-	
-	save_plugin_settings SDB
 	
 	if { $::plugins::SDB::settings(db_persist_series) == 1 } {
 		if { [::plugins::SDB::n_shots_without_series] > 0 } {
@@ -1776,6 +1772,7 @@ proc ::plugins::SDB::CFG::sync_on_startup_change {} {
 
 proc ::plugins::SDB::CFG::rebuild_db {} {
 	say "" $::settings(sound_button_in)
+	if { ![plugin_enabled SDB] } return
 	set ns [namespace current]
 	
 	if { $::plugins::SDB::updating_db == 1 } {
@@ -1818,6 +1815,7 @@ proc ::plugins::SDB::CFG::rebuild_db {} {
 
 proc ::plugins::SDB::CFG::resync_db {} {
 	say "" $::settings(sound_button_in)
+	if { ![plugin_enabled SDB] } return
 	set ns [namespace current]
 	
 	if { $::plugins::SDB::updating_db == 1 } {
@@ -1845,7 +1843,5 @@ proc ::plugins::SDB::CFG::resync_db {} {
 
 proc ::plugins::SDB::CFG::page_done {} {
 	say [translate {Done}] $::settings(sound_button_in)
-#	fill_extensions_listbox
 	page_to_show_when_off extensions
-#	set_extensions_scrollbar_dimensions
 }
