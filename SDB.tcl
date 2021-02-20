@@ -28,7 +28,8 @@ namespace eval ::plugins::SDB {
 proc ::plugins::SDB::main {} {
 	variable settings
 	msg "Starting the 'Shots DataBase' plugin"
-
+	if { ![info exists ::debugging] } { set ::debugging 0 }
+	
 	set is_created [create]	
 	trace add execution app_exit {enter} { ::plugins::SDB::db_close }
 	
@@ -36,7 +37,7 @@ proc ::plugins::SDB::main {} {
 		populate
 	}
 	
-	# Ensure the description summary is updated whenever last shot is saved to history.
+	# Ensure the last shot is persisted to the database whenever it is saved to history.
 	# We don't use 'register_state_change_handler' as that would not update the shot file if its metadata is 
 	#	changed in the Godshots page in Insight or DSx (though currently that does not work)
 	#register_state_change_handler Espresso Idle ::plugins::SDB::save_espresso_to_history_hook
@@ -46,7 +47,7 @@ proc ::plugins::SDB::main {} {
 # Paint settings screen
 proc ::plugins::SDB::preload {} {
 	msg "Preloading the 'Shots DataBase' plugin"
-	check_settings	
+	check_settings
 	save_plugin_settings SDB
 
 	if { [plugin_available DGUI] } {
@@ -56,11 +57,6 @@ proc ::plugins::SDB::preload {} {
 	} else {
 		return ""
 	}
-}
-
-proc ::plugins::SDB::init {} {
-	variable settings
-	
 }
 
 proc ::plugins::SDB::check_settings {} {
@@ -186,8 +182,7 @@ proc ::plugins::SDB::load_shot { filename } {
 	
 	array set file_sets $file_props(settings)
 	
-	
-	set text_fields [::plugins::DGUI::field_names "category text long_text" "shot"]
+	set text_fields [::plugins::DGUI::field_names "category text long_text date" "shot"]
 	lappend text_fields profile_title skin beverage_type
 	foreach field_name $text_fields {
 		if { [info exists file_sets($field_name)] == 1 } {
@@ -345,6 +340,10 @@ proc ::plugins::SDB::modify_shot_file { path arr_new_settings { backup_file {} }
 	return $espresso_data	
 }
 
+proc ::plugins::SDB::db_path { } {
+	return "[homedir]/$::plugins::SDB::settings(db_path)"
+}
+
 # Creates the SQLite shot database from scratch.
 # Returns 1 if the database is actually (re)created, 0 otherwise. 
 proc ::plugins::SDB::create { {recreate 0} {make_backup 1} {update_screen 0} } {
@@ -354,7 +353,7 @@ proc ::plugins::SDB::create { {recreate 0} {make_backup 1} {update_screen 0} } {
 	
 	set updating_db 1
 	
-	set db_path "[homedir]/$::plugins::SDB::settings(db_path)"
+	set db_path [db_path]
 	if {[file exists $db_path] == 1} {
 		if { $recreate == 1 } {
 			db_close
@@ -398,13 +397,12 @@ proc ::plugins::SDB::create { {recreate 0} {make_backup 1} {update_screen 0} } {
 # Grab the reference to the shots database. 
 proc ::plugins::SDB::get_db {} {
 	variable db
-	variable settings
 	
 	if { $db eq {} } { 
-		sqlite3 db "[homedir]/$settings(db_path)" -create 0
+		sqlite3 db [db_path] -create 0
 		# According to documentation, 'db trace' should get you the SQL statements after variable substitution is done,
 		# but it's not the case, so we need to log manually on every statement if we want to have the actual statement. 
-		if { $settings(log_sql_statements) == 1 } {
+		if { $::plugins::SDB::settings(log_sql_statements) == 1 } {
 			db trace ::plugins::SDB::log_sql
 		}
 	}
@@ -597,13 +595,17 @@ proc ::plugins::SDB::upgrade { {update_screen 0} } {
 # Add unnecessary { args } for this to work on trace add execution.
 proc ::plugins::SDB::db_close { args } {	
 	if { [info exists ::plugins::SDB::db] } {
+		variable db
 		if { [catch {
-			variable db
 			db close
 		} err ] != 0 } {
 			msg "ERROR while trying to close the database: $err"
 		}		
 		unset -nocomplain ::plugins::SDB::db
+		set db {}
+	} else {
+		variable db
+		set db {}
 	}
 }
 
