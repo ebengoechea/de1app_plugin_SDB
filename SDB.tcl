@@ -12,6 +12,7 @@ namespace eval ::plugins::SDB {
 	variable db {}
 	variable updating_db 0
 	variable db_version 4
+	variable sqlite_version {}
 	
 	variable min_de1app_version {1.34}
 	variable filename_clock_format "%Y%m%dT%H%M%S"
@@ -36,7 +37,7 @@ proc ::plugins::SDB::main {} {
 	if { $is_created || $settings(sync_on_startup) } {
 		populate
 	}
-	
+
 	# Ensure the last shot is persisted to the database whenever it is saved to history.
 	# We don't use 'register_state_change_handler' as that would not update the shot file if its metadata is 
 	#	changed in the Godshots page in Insight or DSx (though currently that does not work)
@@ -46,6 +47,7 @@ proc ::plugins::SDB::main {} {
 
 # Paint settings screen
 proc ::plugins::SDB::preload {} {
+	variable data
 	msg "Preloading the 'Shots DataBase' plugin"
 	check_settings
 	save_plugin_settings SDB
@@ -397,6 +399,7 @@ proc ::plugins::SDB::create { {recreate 0} {make_backup 1} {update_screen 0} } {
 # Grab the reference to the shots database. 
 proc ::plugins::SDB::get_db {} {
 	variable db
+	variable sqlite_version
 	
 	if { $db eq {} } { 
 		sqlite3 db [db_path] -create 0
@@ -405,6 +408,7 @@ proc ::plugins::SDB::get_db {} {
 		if { $::plugins::SDB::settings(log_sql_statements) == 1 } {
 			db trace ::plugins::SDB::log_sql
 		}
+		set sqlite_version [db version]
 	}
 	return $db
 }
@@ -1626,11 +1630,16 @@ namespace eval ::plugins::SDB::CFG {
 	array set data {
 		page_name "::plugins::SDB::CFG"
 		db_status_msg {}
+		sql_and_schema_versions {}
 	}	
 }
 
 # Added to context actions, so invoked automatically whenever the page is loaded
 proc ::plugins::SDB::CFG::show_page {} {
+	variable data
+	set data(sql_and_schema_versions) "[translate {SQLite version}] $::plugins::SDB::sqlite_version
+[translate {Schema version}] #$::plugins::SDB::db_version"
+	
 	if { ![plugin_enabled SDB] } {
 		::plugins::DGUI::disable_widgets "resync_db* rebuild_db*" [namespace current] 
 	}
@@ -1638,6 +1647,7 @@ proc ::plugins::SDB::CFG::show_page {} {
 
 proc ::plugins::SDB::CFG::setup_ui {} {
 	variable widgets
+	variable db
 	set page [namespace current]
 
 	# HEADERS
@@ -1702,12 +1712,10 @@ proc ::plugins::SDB::CFG::setup_ui {} {
 #		-button_cmd ::plugins::SDB::CFG::show_latest_plugin_description
 	
 	# FOOTER (versions)
-	set db [::plugins::SDB::get_db]
-	::plugins::DGUI::add_text $page 2150 1520 \
-		"[translate {SQLite version}] [db version]\r[translate {Schema version}] #$::plugins::SDB::db_version" \
+	::plugins::DGUI::add_variable $page 2150 1520 {$::plugins::SDB::CFG::data(sql_and_schema_versions)} \
 		-justify center -anchor center
 	
-	#::add_de1_action $page ::plugins::SDB::CFG::show_page
+	::add_de1_action $page ::plugins::SDB::CFG::show_page
 }
 
 proc ::plugins::SDB::CFG::db_persist_desc_change {} {
