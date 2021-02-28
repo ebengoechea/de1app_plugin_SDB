@@ -34,6 +34,12 @@ proc ::plugins::SDB::main {} {
 	msg "Starting the 'Shots DataBase' plugin"
 	if { ![info exists ::debugging] } { set ::debugging 0 }
 	
+	if { [plugins available DGUI] } {
+		plugins load DGUI
+	} else {
+		error [translate "Can't load SDB plugin because required plugin DGUI is not available"]
+	}
+	
 	set is_created [create]	
 	trace add execution app_exit {enter} { ::plugins::SDB::db_close }
 	
