@@ -61,7 +61,8 @@ proc ::plugins::SDB::preload {} {
 	plugins save_settings SDB
 
 	if { [plugins available DGUI] } {
-		plugins preload DGUI	
+		plugins preload DGUI
+		::plugins::DGUI::set_symbols db "\uf1c0" sync "\uf021"
 		::plugins::SDB::CFG::setup_ui
 		return "::plugins::SDB::CFG"
 	} else {
