@@ -208,7 +208,7 @@ proc ::plugins::SDB::load_shot { filename } {
 	array set file_sets $file_props(settings)
 	
 	set text_fields [::plugins::DGUI::field_names "category text long_text date" "shot"]
-	lappend text_fields profile_title skin beverage_type
+	lappend text_fields profile_title skin beverage_type repository_links
 	foreach field_name $text_fields {
 		if { [info exists file_sets($field_name)] == 1 } {
 			set shot_data($field_name) [string trim $file_sets($field_name)]
@@ -1105,6 +1105,32 @@ proc ::plugins::SDB::shots { {return_columns clock} {exc_removed 1} {filter {}} 
 		}		
 		return [array get result]
 	}
+}
+
+proc ::plugins::SDB::previous_shot { wrt_clock {return_columns clock} {exc_removed 1} {filter ""} } {
+	if { $filter ne "" } {
+		append filter " AND "
+	}
+	append filter "clock=(SELECT MAX(clock) FROM shot WHERE clock < $wrt_clock"
+	if { $exc_removed } {
+		append filter " AND removed=0"
+	}
+	append filter ")"
+	
+	return [shots $return_columns $exc_removed $filter 1] 
+}
+
+proc ::plugins::SDB::next_shot { wrt_clock {return_columns clock} {exc_removed 1} {filter ""} } {
+	if { $filter ne "" } {
+		append filter " AND "
+	}
+	append filter "clock=(SELECT MIN(clock) FROM shot WHERE clock > $wrt_clock"
+	if { $exc_removed } {
+		append filter " AND removed=0"
+	}
+	append filter ")"
+	
+	return [shots $return_columns $exc_removed $filter 1] 
 }
 
 # Returns a list of available categories. "field_name" must be available in the data dictionary with 
