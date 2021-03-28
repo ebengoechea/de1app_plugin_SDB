@@ -55,7 +55,13 @@ proc ::plugins::SDB::main {} {
 		plugins load visualizer_upload
 		trace add execution ::plugins::visualizer_upload::uploadShotData leave ::plugins::SDB::save_espresso_to_history_hook
 	} else {
-		trace add execution ::save_this_espresso_to_history leave ::plugins::SDB::save_espresso_to_history_hook
+#		trace add execution ::save_this_espresso_to_history leave ::plugins::SDB::save_espresso_to_history_hook
+		::de1::event::listener::after_flow_complete_add \
+			[lambda {event_dict} {
+			::plugins::SDB::save_espresso_to_history_hook \
+				[dict get $event_dict previous_state] \
+				[dict get $event_dict this_state] \
+			} ]
 	}
 }
 
@@ -100,6 +106,10 @@ proc ::plugins::SDB::check_settings {} {
 		foreach fn "analyzed inserted modified archived unarchived removed unremoved" {
 			set settings(last_sync_$fn) 0
 		}
+	}
+	
+	if { ![info exists ::settings(repository_links)] } {
+		set ::settings(repository_links) {}
 	}
 }
 
@@ -1034,7 +1044,9 @@ proc ::plugins::SDB::update_shot_description { clock arr_new_settings } {
 proc ::plugins::SDB::save_espresso_to_history_hook { args } {
 	variable settings 	
 	if { $::settings(history_saved) != 1 } return
-msg "save_espresso_to_history_hook"
+	#msg "save_espresso_to_history_hook"
+	
+	set ::settings(repository_links) {}
 	
 	if { [plugins enabled visualizer_upload] &&
 			[info exists ::plugins::visualizer_upload::settings(last_upload_shot)] &&
@@ -1043,14 +1055,10 @@ msg "save_espresso_to_history_hook"
 		regsub "<ID>" $::plugins::visualizer_upload::settings(visualizer_browse_url) \
 			$::plugins::visualizer_upload::settings(last_upload_id) link
 		set repo_link "Visualizer $link" 
-		if { $::settings(repository_links) eq "" } { 
-			set ::settings(repository_links) $repo_link
-		} elseif { $::settings(repository_links) ne $repo_link } {
-			lappend ::settings(repository_links) $repo_link
-		}
+		
+		set ::settings(repository_links) $repo_link
 
-msg "save_espresso_to_history_hook - adding repository_links to shot file"
-		array set new_settings "repository_links \{$::settings(repository_links)\}"
+		array set new_settings [list repository_links $::settings(repository_links)]
 		modify_shot_file $::settings(espresso_clock) new_settings
 		::save_settings
 	}
