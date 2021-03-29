@@ -2,7 +2,13 @@
 
 Format based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
-## [1.02] - 2021-03-? (Bundled with DE1app 1.34.?)
+## [1.03] - 2021-03-29
+
+### Changed 
+- Patch bug when $::settings(repository_links) was not initialized.
+- Use Jeff K's new events system to hook when a shot is finished.
+
+## [1.02] - 2021-03-01 (Bundled with DE1app 1.34.?)
 
 ### Changed 
 - Adapt to new plugins and logging systems in 1.34.14

@@ -5,7 +5,7 @@
 namespace eval ::plugins::SDB {
 	variable author "Enrique Bengoechea"
 	variable contact "enri.bengoechea@gmail.com"
-	variable version 1.02
+	variable version 1.03
 	variable github_repo ebengoechea/de1app_plugin_SDB
 	variable name [translate "Shot DataBase"]
 	variable description [translate "Keeps your shot history in a SQLite database, and provides functions to manage shot history files."]
@@ -15,7 +15,7 @@ namespace eval ::plugins::SDB {
 	variable db_version 4
 	variable sqlite_version {}
 	
-	variable min_de1app_version {1.34}
+	variable min_de1app_version {1.34.27}
 	variable filename_clock_format "%Y%m%dT%H%M%S"
 	variable friendly_clock_format "%Y/%m/%d %H:%M"
 	
