@@ -1,6 +1,8 @@
 #######################################################################################################################
 ### A Decent DE1 app plugin to keep a synchronized SQLite database of shots and manage shots history.
 #######################################################################################################################
+package require de1_dui 1.0
+package require de1_logging 1.0
 
 namespace eval ::plugins::SDB {
 	variable author "Enrique Bengoechea"
@@ -20,11 +22,66 @@ namespace eval ::plugins::SDB {
 	variable friendly_clock_format "%Y/%m/%d %H:%M"
 	
 	variable progress_msg {}
-	
+
+	# DATA DICTIONARY CONVENTIONS:
+	#  * The column name in the shot table or the lookup table must be identical to the array item key.
+	#  * The shot_field is the variable name in the shot file, settings section. May not match the array item key in 
+	#		cases like 'other_equipment'.
+	#  * desc_section has to be one of bean, bean_batch, equipment, extraction or people.
+	#  * data_type has to be one of text, long_text, category, numeric or date.
+	variable field_lookup_whats {name name_plural short_name short_name_plural \
+		desc_section db_table lookup_table db_type_column1 db_type_column2 shot_field data_type \
+		min_value max_value n_decimals default_value small_increment big_increment
+	}
+		
+	variable data_dictionary
+	array set data_dictionary {
+		profile_title {"Profile" "Profiles" "Profile" "Profiles" \
+			"" shot "" "" "" profile_title category 0 0 0}
+		bean_desc {"Beans" "Beans" "Beans" "Beans" \
+			bean V_shot "" "" "" bean_brand||bean_type category 0 0 0}
+		bean_brand {"Beans roaster" "Beans roasters" "Roaster" "Roasters" \
+			bean shot "" "" "" bean_brand category 0 0 0}
+		bean_type {"Beans type" "Beans types" "Name" "Names" \
+			bean shot "" "" "" bean_type category 0 50 0}
+		bean_notes {"Beans notes" "Beans notes" "Note" "Notes" \
+			bean_batch shot "" "" "" bean_notes long_text 0 1000 0}
+		roast_date {"Roast date" "Roast dates" "Date" "Dates" \
+			bean_batch shot "" "" "" roast_date date 0 0 0}
+		roast_level {"Roast level" "Roast levels" "Level" "Levels" \
+			bean_batch shot "" "" "" roast_level category 0 50 0}
+		grinder_model {"Grinder name" "Grinder names" "Grinder" "Grinders" \
+			equipment shot "" "" "" grinder_model category 0 100 0}
+		grinder_setting {"Grinder setting" "Grinder settings" "Setting" "Settings" \
+			equipment shot "" "" "" grinder_setting category 0 100 0}
+		grinder_dose_weight {"Dose weight" "Dose weights" "Dose" "Doses" \
+			extraction shot "" "" "" grinder_dose_weight numeric 0 30 1 18 0.1 1.0}
+		drink_weight {"Drink weight" "Drink weights" "Weight" "Weights" \
+			extraction shot "" "" "" drink_weight numeric 0 500 1 36 1.0 10.0}
+		drink_tds {"Total Dissolved Solids (TDS %)" "Total Dissolved Solids %" "TDS" "TDS" \
+			extraction shot "" "" "" drink_tds numeric 0 15 2 8 0.01 0.1}
+		drink_ey {"Extraction Yield (EY %)" "Extraction Yields %" "EY" "EYs" \
+			extraction shot "" "" "" drink_ey numeric 0 30 2 20 0.1 1.0}	
+		espresso_enjoyment {"Enjoyment (0-100)" "Enjoyments" "Enjoyment" "Enjoyment" \
+			extraction shot "" "" "" espresso_enjoyment numeric 0 100 0 50 1 10}
+		espresso_notes {"Notes" "Notes" "Notes" "Notes" \
+			extraction shot "" "" "" espresso_notes long_text 0 1000 0}	
+		my_name {"Barista" "Baristas" "Barista" "Baristas" \
+			people shot "" "" "" my_name category 0 100 0 people}
+		drinker_name {"Drinker" "Drinkers" "Drinker" "Drinkers" \
+			people shot "" "" "" drinker_name category 0 100 0}
+		skin {"Skin" "Skins" "Skin" "Skins" \
+			"" shot "" "" "" skin category 0 0 0}
+		beverage_type {"Beverage type" "Beverage types" "Bev type" "Bev types" \
+			"" shot "" "" "" beverage_type category 0 0 0}
+		repository_links {"Repository link" "Repository links" "Repo link" "Repo links" \
+			"" "" "" "" "" repository_links "array" 0 0 0}
+	}	
+
 	namespace export string2sql strings2sql get_shot_file_path load_shot modify_shot_file \
 		get_db db_close persist_shot update_shot_description \
 		available_categories shots_using_category update_category previous_values \
-		has_shot_series_data
+		has_shot_series_data field_lookup field_names 
 }
 
 proc ::plugins::SDB::main {} {	
@@ -33,12 +90,6 @@ proc ::plugins::SDB::main {} {
 	
 	msg "Starting the 'Shots DataBase' plugin"
 	if { ![info exists ::debugging] } { set ::debugging 0 }
-	
-	if { [plugins available DGUI] } {
-		plugins load DGUI
-	} else {
-		error [translate "Can't load SDB plugin because required plugin DGUI is not available"]
-	}
 	
 	set is_created [create]	
 	trace add execution app_exit {enter} { ::plugins::SDB::db_close }
@@ -72,14 +123,10 @@ proc ::plugins::SDB::preload {} {
 	check_settings
 	plugins save_settings SDB
 
-	if { [plugins available DGUI] } {
-		plugins preload DGUI
-		::plugins::DGUI::set_symbols db "\uf1c0" sync "\uf021"
-		::plugins::SDB::CFG::setup_ui
-		return "::plugins::SDB::CFG"
-	} else {
-		return ""
-	}
+	dui symbol set db "\uf1c0" sync "\uf021"
+	::dui::pages::SDB_settings::setup
+	
+	return SDB_settings
 }
 
 proc ::plugins::SDB::check_settings {} {
@@ -144,6 +191,65 @@ proc ::plugins::SDB::string2sql { text } {
 	#return "'[regsub -all {'} $text {''}]'"
 	return "'[string map {' ''} $text]'"
 } 
+
+# Looks up fields metadata in the data dictionary. 'what' can be a list with multiple items, then a list is returned.
+proc ::plugins::SDB::field_lookup { field {what name} } {
+	variable data_dictionary
+	variable field_lookup_whats
+	
+	if { $field eq "" } return
+	
+	if { ![info exists data_dictionary($field)] } { 
+		msg "WARNING data field '$field' unmatched in proc field_lookup"
+		return {} 
+	}
+	
+	set result {}
+	foreach whatpart $what {
+		set match_idx [lsearch -all $field_lookup_whats $whatpart]
+		if { $match_idx == -1 } { 
+			msg "WARNING what item '$whatpart' unmatched in proc field_lookup"
+			lappend result {}
+		} else {
+			lappend result [lindex $data_dictionary($field) $match_idx]
+		}
+	}
+
+	if { [llength $result] == 1 } { set result [lindex $result 0] }
+	return $result
+}
+
+proc ::plugins::SDB::field_names { {data_types {} } {db_tables {}} } {
+	variable data_dictionary
+	variable field_lookup_whats
+	
+	if { $data_types eq "" && $db_tables eq "" } {
+		return [array names data_dictionary]
+	} 
+	
+	if { $data_types eq "" } {
+		set dt_idx -1
+	} else { 
+		set dt_idx [lsearch -all $field_lookup_whats "data_type"]
+	}
+	if { $db_tables eq "" } {
+		set tab_idx -1
+	} else {
+		set tab_idx [lsearch -all $field_lookup_whats "db_table"]
+	}
+	
+	set fields {}	
+	foreach fn [array names data_dictionary] {
+		set data_type [lindex $data_dictionary($fn) $dt_idx]
+		set db_table [lindex $data_dictionary($fn) $tab_idx]
+		
+		set matches_dt [expr {$dt_idx == -1 || [lsearch -all $data_types $data_type] > -1 }]
+		set matches_tab [expr {$tab_idx == -1 || [lsearch -all $db_tables $db_table] > -1 }]
+		if { $matches_dt && $matches_tab } { lappend fields $fn }
+	}
+	
+	return $fields
+}
 
 # Builds a full path to a shot file and returns the path if the file exists, otherwise an empty string.
 # If the filename happens to be an integer number, it is assumed it's a clock rather than a filename, and it is
@@ -217,7 +323,7 @@ proc ::plugins::SDB::load_shot { filename } {
 	
 	array set file_sets $file_props(settings)
 	
-	set text_fields [::plugins::DGUI::field_names "category text long_text date" "shot"]
+	set text_fields [::plugins::SDB::field_names "category text long_text date" "shot"]
 	lappend text_fields profile_title skin beverage_type repository_links
 	foreach field_name $text_fields {
 		if { [info exists file_sets($field_name)] == 1 } {
@@ -227,7 +333,7 @@ proc ::plugins::SDB::load_shot { filename } {
 		}
 	}
 	
-	foreach field_name [::plugins::DGUI::field_names "numeric" "shot"] {
+	foreach field_name [::plugins::SDB::field_names "numeric" "shot"] {
 		if { [info exists file_sets($field_name)] == 1 && $file_sets($field_name) > 0 } {
 			set shot_data($field_name) $file_sets($field_name)
 		} else {
@@ -1151,7 +1257,7 @@ proc ::plugins::SDB::next_shot { wrt_clock {return_columns clock} {exc_removed 1
 proc ::plugins::SDB::available_categories { field_name {exc_removed_shots 1} {filter {}} {use_lookup_table 1} args } {
 	set db [get_db]	
 	
-	lassign [::plugins::DGUI::field_lookup $field_name {data_type db_table lookup_table db_type_column1 db_type_column2}] \
+	lassign [::plugins::SDB::field_lookup $field_name {data_type db_table lookup_table db_type_column1 db_type_column2}] \
 		data_type db_table lookup_table db_type_column1 db_type_column2 
 	if { $data_type ne "category" } return
 	if { $use_lookup_table == 1 && $lookup_table eq "" } { set use_lookup_table 0 }	
@@ -1168,7 +1274,7 @@ proc ::plugins::SDB::available_categories { field_name {exc_removed_shots 1} {fi
 		lappend fields "TRIM($db_type_column1) AS $db_type_column1" 
 		lappend grouping_fields "TRIM($db_type_column1)"
 		if { $use_lookup_table == 1 } {							
-			lassign [::plugins::DGUI::field_lookup $db_type_column1 {lookup_table}] type1_db_table 
+			lassign [::plugins::SDB::field_lookup $db_type_column1 {lookup_table}] type1_db_table 
 			if { $type1_db_table ne "" } {
 				append extra_from "LEFT JOIN $type1_db_table ON $db_type_column1=${type1_db_table}.$db_type_column1 "
 			}
@@ -1244,7 +1350,7 @@ proc ::plugins::SDB::available_categories { field_name {exc_removed_shots 1} {fi
 proc ::plugins::SDB::shots_using_category { field_name value {return_what clock} args } {
 	set db [get_db]
 	
-	lassign [::plugins::DGUI::field_lookup $field_name {data_type db_table db_type_column1 db_type_column2}] \
+	lassign [::plugins::SDB::field_lookup $field_name {data_type db_table db_type_column1 db_type_column2}] \
 		data_type db_table db_type_column1 db_type_column2
 	if { $data_type ne "category" } { return {} }
 	
@@ -1372,7 +1478,7 @@ proc ::plugins::SDB::NEW_update_category { field_name old_value new_value { use_
 	
 	if { [string trim $old_value] eq "" || $old_value eq $new_value } { return }
 	set new_value [string trim $new_value]
-	lassign [::plugins::DGUI::field_lookup $field_name {data_type db_table db_type_column1 db_type_column2 \
+	lassign [::plugins::SDB::field_lookup $field_name {data_type db_table db_type_column1 db_type_column2 \
 		shot_field lookup_table desc_section}] \
 		data_type db_table db_type_column1 db_type_column2 shot_field lookup_table desc_section
 	if { $data_type ne "category" } { return }
@@ -1564,7 +1670,7 @@ proc ::plugins::SDB::add_category { field_name new_value {type1 {}} {type2 {}} a
 	set new_value [string trim $new_value]
 	if { $new_value eq "" } { return 0 }
 	
-	lassign [::plugins::DGUI::field_lookup $field_name {data_type db_type_column1 db_type_column2 lookup_table}] \
+	lassign [::plugins::SDB::field_lookup $field_name {data_type db_type_column1 db_type_column2 lookup_table}] \
 		data_type db_type_column1 db_type_column2 lookup_table
 	if { $data_type ne "category" } { return }
 	
@@ -1614,7 +1720,7 @@ proc ::plugins::SDB::remove_category { field_name value {type1 {}} {type2 {}} } 
 	set n_shots [shots_using_category $field_name $value "count" $type1 $type2]
 	if { $n_shots > 0 } { return 0 }
 	
-	lassign [::plugins::DGUI::field_lookup $field_name {data_type db_type_column1 db_type_column2 lookup_table}] \
+	lassign [::plugins::SDB::field_lookup $field_name {data_type db_type_column1 db_type_column2 lookup_table}] \
 		data_type db_type_column1 db_type_column2 lookup_table
 	if { $data_type ne "category" } { return }
 	
@@ -1646,7 +1752,7 @@ proc ::plugins::SDB::n_shots_without_series {} {
 # List of distinct (previously typed) values of any category field. 
 proc ::plugins::SDB::previous_values { field_name {exc_removed_shots 1} {filter {}} {max_items 500} } {
 	set db [get_db]	
-	lassign [::plugins::DGUI::field_lookup $field_name {data_type db_table lookup_table db_type_column1 db_type_column2}] \
+	lassign [::plugins::SDB::field_lookup $field_name {data_type db_table lookup_table db_type_column1 db_type_column2}] \
 		data_type db_table lookup_table db_type_column1 db_type_column2 
 	if { $data_type eq "" } {
 		msg "ERROR in proc previous_values, field_name '$field_name' not found in data dictionary"
@@ -1697,69 +1803,80 @@ proc ::plugins::SDB::delete_shot_series_data {} {
 
 ### SDB CONFIGURATION PAGE ##########################################################################################
 
-namespace eval ::plugins::SDB::CFG {
-	variable widgets
-	array set widgets {}
+namespace eval ::dui::pages::SDB_settings {
+#	variable widgets
+#	array set widgets {}
 		
 	# NOTE that we use "item_values" to hold all available items, not "items" as the listbox widget, as we need
 	# to have the full list always stored. So the "items" listbox widget does not have a list_variable but we
 	# directly add to it.
 	variable data
 	array set data {
-		page_name "::plugins::SDB::CFG"
 		db_status_msg {}
 		sql_and_schema_versions {}
 	}	
 }
 
-# Added to context actions, so invoked automatically whenever the page is loaded
-proc ::plugins::SDB::CFG::show_page {} {
-	variable data
-	set data(sql_and_schema_versions) "[translate {SQLite version}] $::plugins::SDB::sqlite_version
-[translate {Schema version}] #$::plugins::SDB::db_version"
+proc ::dui::pages::SDB_settings::setup {} {
+	set page [namespace tail [namespace current]]
+
+	# Use Insight aspect to integrate visually with the settings pages, even if another skin is in use, then revert
+	#	to the active theme at the end.
+	set current_theme [dui theme get]
+	dui theme set default
+
+	# Define styles
+	dui aspect set -type button -style insight_settings {shape round bwidth 570 bheight 165}
+	dui aspect set -type button_symbol -style insight_settings {pos {0.12 0.5} font_size 34 fill "#35363d" 
+		anchor center justify center} 
+	dui aspect set -type button_label -style insight_settings {pos {0.60 0.5} font_family notosansuibold font_size 18 
+		fill white anchor center justify center}
 	
-	if { ![plugins enabled SDB] } {
-		::plugins::DGUI::disable_widgets "resync_db* rebuild_db*" [namespace current] 
-	}
-}
-
-proc ::plugins::SDB::CFG::setup_ui {} {
-	variable widgets
-	variable db
-	set page [namespace current]
-
-	# HEADERS
-	::plugins::DGUI::add_page $page -title [translate "Shot DataBase Plugin Settings"] \
-		-buttons_loc center -cancel_button 0 
-	#-add_bg_img 0 
+	dui aspect set -type text -style page_title {font_family notosansuibold  font_size 26 anchor center 
+		justify center fill "#35363d"}
+	dui aspect set -type text -style section_title {font_family notosansuibold font_size 16 anchor nw justify left }
+	dui aspect set -type button -style insight_ok {shape round radius 30 bwidth 480 bheight 118}
+	dui aspect set -type button_label -style insight_ok {font_family notosansuibold font_size 19}
+	
+	# HEADER AND BACKGROUND
+	dui page add $page -namespace 1
+	dui add text $page 1280 100 -tags page_title -text [translate "Shot DataBase Plugin Settings"] -style page_title
 		
-	set y 250
-	::plugins::DGUI::add_text $page 600 $y [translate "General options"] -font_size $::plugins::DGUI::section_font_size \
-		-anchor "center" -justify "center" 	
-	::plugins::DGUI::add_text $page 1900 $y [translate "Manage database"] -font_size $::plugins::DGUI::section_font_size \
-		-anchor "center" -justify "center"	
+	dui add canvas_item rect $page 10 190 2550 1430 -fill "#ededfa" -width 0
+	dui add canvas_item line $page 14 188 2552 189 -fill "#c7c9d5" -width 2
+	dui add canvas_item line $page 2551 188 2552 1426 -fill "#c7c9d5" -width 2
 	
-	# LEFT SIDE
-	set x_label 200
+	dui add canvas_item rect $page 22 210 1270 800 -fill white -width 0
+	dui add canvas_item rect $page 22 1200 1270 1410 -fill white -width 0
+	dui add canvas_item rect $page 1290 210 2536 1410 -fill white -width 0
+		
+	# LEFT SIDE, FIRST BLOCK
+	set x_label 75; set y 250
+	dui add text $page $x_label $y -text [translate "General options"] -style section_title
 	
-	::plugins::DGUI::add_checkbox $page ::plugins::SDB::settings(db_persist_desc) $x_label [incr y 100] \
-		::plugins::SDB::CFG::db_persist_desc_change -use_page_var 0 -widget_name db_persist_desc \
-		-label [translate "Store shot descriptions on database"]
+	dui add checkbox $page $x_label [incr y 100] -textvariable ::plugins::SDB::settings(db_persist_desc) \
+		-tags db_persist_desc -command db_persist_desc_change \
+		-label [translate "Store shot descriptions on database"] -label_pos {e 100 0}
+
+	dui add checkbox $page $x_label [incr y 100] -textvariable ::plugins::SDB::settings(db_persist_series) \
+		-tags db_persist_series -command db_persist_series_change \
+		-label [translate "Store chart series on database"] -label_pos {e 100 0}
 	
-	::plugins::DGUI::add_checkbox $page ::plugins::SDB::settings(db_persist_series) $x_label [incr y 100] \
-		::plugins::SDB::CFG::db_persist_series_change -use_page_var 0 -widget_name db_persist_series \
-		-label [translate "Store chart series on database"]
+	dui add checkbox $page $x_label [incr y 100] -textvariable ::plugins::SDB::settings(sync_on_startup) \
+		-tags sync_on_startup -command sync_on_startup_change \
+		-label [translate "Resync database to history on startup"] -label_pos {e 100 0}
 	
-	::plugins::DGUI::add_checkbox $page ::plugins::SDB::settings(sync_on_startup) $x_label [incr y 100] \
-		::plugins::SDB::CFG::sync_on_startup_change -use_page_var 0 -widget_name sync_on_startup \
-		-label [translate "Resync database to history on startup"]
+	# LEFT SIDE, SECOND BLOCK
+	dui add variable $page $x_label 1250 -tags sql_and_schema_versions -anchor nw -justify left 
 	
 	# RIGHT SIDE
-	set x_label 1600; set y 350
-	::plugins::DGUI::add_button2 $page resync_db $x_label $y [translate "Resync\rdatabase"] \
-		"" sync ::plugins::SDB::CFG::resync_db
+	set x_label 1345; set y 250
+	dui add text $page $x_label $y -text [translate "Manage database"] -style section_title 
 	
-	::plugins::DGUI::add_variable $page [expr {$x_label+$::plugins::DGUI::button2_width+75}] $y {[translate {Last full sync}]:
+	dui add button $page $x_label [incr y 100] -tags resync_db -command resync_db -style insight_settings \
+		-symbol sync -label [translate "Resync database"]
+	
+	dui add variable $page [expr {$x_label+700}] $y -tags last_sync -textvariable {[translate {Last full sync stats}]:
 [clock format $::plugins::SDB::settings(last_sync_clock) -format $::plugins::SDB::friendly_clock_format]\r 
 [translate {# Analyzed}]: $::plugins::SDB::settings(last_sync_analyzed)
 [translate {# Added}]: $::plugins::SDB::settings(last_sync_inserted)
@@ -1767,49 +1884,58 @@ proc ::plugins::SDB::CFG::setup_ui {} {
 [translate {# Archived}]: $::plugins::SDB::settings(last_sync_archived)
 [translate {# Unarchived}]: $::plugins::SDB::settings(last_sync_unarchived)
 [translate {# Removed}]: $::plugins::SDB::settings(last_sync_removed)
-[translate {# Unremoved}]: $::plugins::SDB::settings(last_sync_unremoved)} \
-		-widget_name "last_sync" -fill $::plugins::DGUI::default_shot_desc_font_color
+[translate {# Unremoved}]: $::plugins::SDB::settings(last_sync_unremoved)}
 	
-	incr y [expr {$::plugins::DGUI::button2_height+100}]
-	::plugins::DGUI::add_button2 $page rebuild_db $x_label $y [translate "Rebuild\rdatabase"] \
-		"" db ::plugins::SDB::CFG::rebuild_db
+	incr y [expr {[dui aspect get button bheight -style insight_settings]+100}]
+	dui add button $page $x_label $y -tags rebuild_db -command ::dui::pages::SDB_settings::rebuild_db \
+		-style insight_settings -symbol db -label [translate "Rebuild database"]
 
-	incr y [expr {$::plugins::DGUI::button2_height+100}]
-	::plugins::DGUI::add_variable $page $x_label $y {$::plugins::SDB::progress_msg} -fill $::plugins::DGUI::remark_color
+	incr y [expr {[dui aspect get button bheight -style insight_settings]+200}]
+	dui add variable $page $x_label $y -tags sdb_progress_msg -textvariable {$::plugins::SDB::progress_msg} -style remark
 
 	incr y 100
-	::plugins::DGUI::add_variable $page $x_label $y {$::plugins::SDB::CFG::data(db_status_msg)} -fill $::plugins::DGUI::error_color
+	dui add variable $page $x_label $y -tags db_status_msg -style error
 	
 	# Auto-updater
 #	incr y 60
 #	::plugins::DGUI::add_button2 $page update_plugin $x_label $y [translate "Update\rplugin"] 1 cloud_download_alt \
-#		::plugins::SDB::CFG::update_plugin_click
+#		::dui::pages::SDB_settings::update_plugin_click
 #		
 #	::plugins::DGUI::add_variable $page [expr {$x_label+$::plugins::DGUI::button2_width+60}] $y \
-#		{$::plugins::SDB::CFG::data(update_plugin_msg)} -width 220 -fill $::plugins::DGUI::remark_color -has_button 1 \
-#		-button_cmd ::plugins::SDB::CFG::show_latest_plugin_description
+#		{$::dui::pages::SDB_settings::data(update_plugin_msg)} -width 220 -fill $::plugins::DGUI::remark_color -has_button 1 \
+#		-button_cmd ::dui::pages::SDB_settings::show_latest_plugin_description
 	
-	# FOOTER (versions)
-	::plugins::DGUI::add_variable $page 2150 1520 {$::plugins::SDB::CFG::data(sql_and_schema_versions)} \
-		-justify center -anchor center
-	
-	::add_de1_action $page ::plugins::SDB::CFG::show_page
+	# FOOTER
+	dui add button $page 1035 1460 -tags sdb_settings_ok -style insight_ok -command page_done -label [translate Ok]
+		
+	dui theme set $current_theme
 }
 
-proc ::plugins::SDB::CFG::db_persist_desc_change {} {
+# Invoked automatically after the page is shown
+proc ::dui::pages::SDB_settings::show { page_to_hide page_to_show } {
+	variable data
+	set data(sql_and_schema_versions) "[translate {SQLite version}] $::plugins::SDB::sqlite_version
+[translate {Schema version}] #$::plugins::SDB::db_version"
+	
+	if { ![plugins enabled SDB] } {
+		dui item disable SDB_settings "resync_db* rebuild_db*" 
+	}
+}
+
+proc ::dui::pages::SDB_settings::db_persist_desc_change {} {
 	#set ns [namespace current]	
 	plugins save_settings SDB
 }
 
-proc ::plugins::SDB::CFG::db_persist_series_change {} {
-	set ns [namespace current]
+proc ::dui::pages::SDB_settings::db_persist_series_change {} {
+	set page [namespace tail [namespace current]]
 	plugins save_settings SDB	
 	if { ![plugins enabled SDB] } return
 	
 	if { $::plugins::SDB::updating_db == 1 } {
-		set ::plugins::SDB::CFG::data(db_status_msg) [translate "Database busy. Try later"]
+		set ::dui::pages::SDB_settings::data(db_status_msg) [translate "Database busy. Try later"]
 		set ::plugins::SDB::settings(db_persist_series) [expr {!$::plugins::SDB::settings(db_persist_series)}]
-		after 3000 { set ::plugins::SDB::CFG::data(db_status_msg) "" }
+		after 3000 { set ::dui::pages::SDB_settings::data(db_status_msg) "" }
 		return
 	}
 	
@@ -1820,13 +1946,13 @@ proc ::plugins::SDB::CFG::db_persist_series_change {} {
 				-type yesnocancel -icon question]
 			if { $answer eq "yes" } { 
 				borg spinner on	 
-				::plugins::DGUI::disable_widgets {db_persist_series* rebuild_db* resync_db*} $ns
+				dui item disable $page "db_persist_series* rebuild_db* resync_db*"
 				if {[catch { ::plugins::SDB::populate 0 1 1 1 } err] != 0} {
 					SDB::msg "ERROR populating DB: $err"
 					set ::plugins::SDB::progress_msg [translate "Failed to sync DB:\r$err"]
 					update	
 				}
-				::plugins::DGUI::enable_widgets {db_persist_series* rebuild_db* resync_db*} $ns
+				dui item enable SDB_settings "db_persist_series* rebuild_db* resync_db*"
 				borg spinner off
 				borg systemui $::android_full_screen_flags
 				after 3000 { set ::plugins::SDB::progress_msg "" }
@@ -1841,9 +1967,9 @@ proc ::plugins::SDB::CFG::db_persist_series_change {} {
 				[translate {Do you want to remove them? (select 'No' to maintain them)}]" \
 				-type yesnocancel -icon question]
 			if { $answer eq "yes" } { 
-				::plugins::DGUI::disable_widgets {db_persist_series* rebuild_db* resync_db*} $ns
+				dui item disable $page "db_persist_series* rebuild_db* resync_db*"
 				::plugins::SDB::delete_shot_series_data
-				::plugins::DGUI::enable_widgets {db_persist_series* rebuild_db* resync_db*} $ns
+				dui item enable SDB_settings "db_persist_series* rebuild_db* resync_db*"
 			} elseif { $answer eq "cancel" } {
 				set ::plugins::SDB::settings(db_persist_series) 1
 				return
@@ -1854,30 +1980,29 @@ proc ::plugins::SDB::CFG::db_persist_series_change {} {
 	
 }
 
-proc ::plugins::SDB::CFG::sync_on_startup_change {} {
+proc ::dui::pages::SDB_settings::sync_on_startup_change {} {
 	plugins save_settings SDB
 }
 
-proc ::plugins::SDB::CFG::rebuild_db {} {
+proc ::dui::pages::SDB_settings::rebuild_db {} {
 	say "" $::settings(sound_button_in)
 	if { ![plugins enabled SDB] } return
-	set ns [namespace current]
 	
 	if { $::plugins::SDB::updating_db == 1 } {
-		set ::plugins::SDB::CFG::data(db_status_msg) [translate "Database busy. Try later"]
-		after 3000 { set ::plugins::SDB::CFG::data(db_status_msg) "" }
+		set ::dui::pages::SDB_settings::data(db_status_msg) [translate "Database busy. Try later"]
+		after 3000 { set ::dui::pages::SDB_settings::data(db_status_msg) "" }
 		return
 	}
 	
 	borg spinner on	
-	::plugins::DGUI::disable_widgets {db_persist_series* rebuild_db* resync_db*} $ns
+	dui item disable SDB_settings "db_persist_series* rebuild_db* resync_db*"
 	
 	if {[catch { ::plugins::SDB::create 1 1 1 } err] != 0} {
 		msg "ERROR recreating DB: $err"
 		set ::plugins::SDB::progress_msg [translate "Failed to recreate DB:\r$err"]
 		update
 		after 3000 { set ::plugins::SDB::progress_msg "" }
-		::plugins::DGUI::enable_widgets {db_persist_series* rebuild_db* resync_db*} $ns
+		dui item enable SDB_settings "db_persist_series* rebuild_db* resync_db*"
 		borg spinner off
 		borg systemui $::android_full_screen_flags
 #		set ::plugins::SDB::updating_db 0
@@ -1888,33 +2013,32 @@ proc ::plugins::SDB::CFG::rebuild_db {} {
 		set ::plugins::SDB::progress_msg [translate "Failed to sync DB:\r$err"]
 		update
 		after 3000 { set ::plugins::SDB::progress_msg "" }
-		::plugins::DGUI::enable_widgets {db_persist_series* rebuild_db* resync_db*} $ns
+		dui item enable SDB_settings "db_persist_series* rebuild_db* resync_db*"
 		borg spinner off
 		borg systemui $::android_full_screen_flags
 		return				
 	}
 	
-	::plugins::DGUI::enable_widgets {db_persist_series* rebuild_db* resync_db*} $ns
+	dui item enable SDB_settings "db_persist_series* rebuild_db* resync_db*"
 	borg spinner off
 	borg systemui $::android_full_screen_flags
 	after 3000 { set ::plugins::SDB::progress_msg "" }
 	say "" $::settings(sound_button_out)
 }
 
-proc ::plugins::SDB::CFG::resync_db {} {
+proc ::dui::pages::SDB_settings::resync_db {} {
 	say "" $::settings(sound_button_in)
 	if { ![plugins enabled SDB] } return
-	set ns [namespace current]
 	
 	if { $::plugins::SDB::updating_db == 1 } {
-		set ::plugins::SDB::CFG::data(db_status_msg) [translate "Database busy. Try later"]
+		set ::dui::pages::SDB_settings::data(db_status_msg) [translate "Database busy. Try later"]
 		update
-		after 3000 { set ::plugins::SDB::CFG::data(db_status_msg) "" }
+		after 3000 { set ::dui::pages::SDB_settings::data(db_status_msg) "" }
 		return
 	}
 
 	borg spinner on
-	::plugins::DGUI::disable_widgets {db_persist_series* rebuild_db* resync_db*} $ns
+	dui item disable SDB_settings "db_persist_series* rebuild_db* resync_db*"
 	
 	if {[catch { ::plugins::SDB::populate "" "" 1 } err] != 0} {
 		SDB::msg "ERROR populating DB: $err"
@@ -1922,14 +2046,14 @@ proc ::plugins::SDB::CFG::resync_db {} {
 		update		
 	}
 
-	::plugins::DGUI::enable_widgets {db_persist_series* rebuild_db* resync_db*} $ns
+	dui item enable SDB_settings "db_persist_series* rebuild_db* resync_db*"
 	borg spinner off
 	borg systemui $::android_full_screen_flags
 	after 3000 { set ::plugins::SDB::progress_msg "" }
 	say "" $::settings(sound_button_out)
 }
 
-proc ::plugins::SDB::CFG::page_done {} {
+proc ::dui::pages::SDB_settings::page_done {} {
 	say [translate {Done}] $::settings(sound_button_in)
 	page_to_show_when_off extensions
 }
