@@ -124,7 +124,7 @@ proc ::plugins::SDB::preload {} {
 	plugins save_settings SDB
 
 	dui symbol set db "\uf1c0" sync "\uf021"
-	::dui::pages::SDB_settings::setup
+	dui page add SDB_settings -namespace true
 	
 	return SDB_settings
 }
@@ -1826,20 +1826,19 @@ proc ::dui::pages::SDB_settings::setup {} {
 	dui theme set default
 
 	# Define styles
-	dui aspect set -type button -style insight_settings {shape round bwidth 570 bheight 165}
-	dui aspect set -type button_symbol -style insight_settings {pos {0.12 0.5} font_size 34 fill "#35363d" 
+	dui aspect set -type dbutton -style insight_settings {shape round bwidth 570 bheight 165}
+	dui aspect set -type dbutton_symbol -style insight_settings {pos {0.12 0.5} font_size 34 fill "#35363d" 
 		anchor center justify center} 
-	dui aspect set -type button_label -style insight_settings {pos {0.60 0.5} font_family notosansuibold font_size 18 
+	dui aspect set -type dbutton_label -style insight_settings {pos {0.60 0.5} font_family notosansuibold font_size 18 
 		fill white anchor center justify center}
 	
 	dui aspect set -type text -style page_title {font_family notosansuibold  font_size 26 anchor center 
 		justify center fill "#35363d"}
 	dui aspect set -type text -style section_title {font_family notosansuibold font_size 16 anchor nw justify left }
-	dui aspect set -type button -style insight_ok {shape round radius 30 bwidth 480 bheight 118}
-	dui aspect set -type button_label -style insight_ok {font_family notosansuibold font_size 19}
+#	dui aspect set -type dbutton -style insight_ok {shape round radius 30 bwidth 480 bheight 118}
+#	dui aspect set -type dbutton_label -style insight_ok {font_family notosansuibold font_size 19}
 	
 	# HEADER AND BACKGROUND
-	dui page add $page -namespace 1
 	dui add text $page 1280 100 -tags page_title -text [translate "Shot DataBase Plugin Settings"] -style page_title
 		
 	dui add canvas_item rect $page 10 190 2550 1430 -fill "#ededfa" -width 0
@@ -1854,15 +1853,15 @@ proc ::dui::pages::SDB_settings::setup {} {
 	set x_label 75; set y 250
 	dui add text $page $x_label $y -text [translate "General options"] -style section_title
 	
-	dui add checkbox $page $x_label [incr y 100] -textvariable ::plugins::SDB::settings(db_persist_desc) \
+	dui add dcheckbox $page $x_label [incr y 100] -textvariable ::plugins::SDB::settings(db_persist_desc) \
 		-tags db_persist_desc -command db_persist_desc_change \
 		-label [translate "Store shot descriptions on database"] -label_pos {e 100 0}
 
-	dui add checkbox $page $x_label [incr y 100] -textvariable ::plugins::SDB::settings(db_persist_series) \
+	dui add dcheckbox $page $x_label [incr y 100] -textvariable ::plugins::SDB::settings(db_persist_series) \
 		-tags db_persist_series -command db_persist_series_change \
 		-label [translate "Store chart series on database"] -label_pos {e 100 0}
 	
-	dui add checkbox $page $x_label [incr y 100] -textvariable ::plugins::SDB::settings(sync_on_startup) \
+	dui add dcheckbox $page $x_label [incr y 100] -textvariable ::plugins::SDB::settings(sync_on_startup) \
 		-tags sync_on_startup -command sync_on_startup_change \
 		-label [translate "Resync database to history on startup"] -label_pos {e 100 0}
 	
@@ -1873,7 +1872,7 @@ proc ::dui::pages::SDB_settings::setup {} {
 	set x_label 1345; set y 250
 	dui add text $page $x_label $y -text [translate "Manage database"] -style section_title 
 	
-	dui add button $page $x_label [incr y 100] -tags resync_db -command resync_db -style insight_settings \
+	dui add dbutton $page $x_label [incr y 100] -tags resync_db -command resync_db -style insight_settings \
 		-symbol sync -label [translate "Resync database"]
 	
 	dui add variable $page [expr {$x_label+700}] $y -tags last_sync -textvariable {[translate {Last full sync stats}]:
@@ -1886,11 +1885,11 @@ proc ::dui::pages::SDB_settings::setup {} {
 [translate {# Removed}]: $::plugins::SDB::settings(last_sync_removed)
 [translate {# Unremoved}]: $::plugins::SDB::settings(last_sync_unremoved)}
 	
-	incr y [expr {[dui aspect get button bheight -style insight_settings]+100}]
-	dui add button $page $x_label $y -tags rebuild_db -command ::dui::pages::SDB_settings::rebuild_db \
+	incr y [expr {[dui aspect get dbutton bheight -style insight_settings]+100}]
+	dui add dbutton $page $x_label $y -tags rebuild_db -command ::dui::pages::SDB_settings::rebuild_db \
 		-style insight_settings -symbol db -label [translate "Rebuild database"]
 
-	incr y [expr {[dui aspect get button bheight -style insight_settings]+200}]
+	incr y [expr {[dui aspect get dbutton bheight -style insight_settings]+200}]
 	dui add variable $page $x_label $y -tags sdb_progress_msg -textvariable {$::plugins::SDB::progress_msg} -style remark
 
 	incr y 100
@@ -1906,7 +1905,7 @@ proc ::dui::pages::SDB_settings::setup {} {
 #		-button_cmd ::dui::pages::SDB_settings::show_latest_plugin_description
 	
 	# FOOTER
-	dui add button $page 1035 1460 -tags sdb_settings_ok -style insight_ok -command page_done -label [translate Ok]
+	dui add dbutton $page 1035 1460 -tags sdb_settings_ok -style insight_ok -command page_done -label [translate Ok]
 		
 	dui theme set $current_theme
 }
