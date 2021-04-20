@@ -273,6 +273,8 @@ proc ::plugins::SDB::get_shot_file_path { filename } {
 			return "[homedir]/history/$filename"
 		} elseif { [file exists "[homedir]/history_archive/$filename"] } {
 			return "[homedir]/history_archive/$filename"
+		} else {
+			msg -NOTICE [namespace current] get_shot_file_path "can't find shot file '$filename'"
 		}
 	} elseif { [file exists $filename] } {
 		return $filename
@@ -515,7 +517,7 @@ proc ::plugins::SDB::create { {recreate 0} {make_backup 1} {update_screen 0} } {
 		}
 	}
 	
-	say [translate "Creating shots database"] {}
+	dui say [translate "Creating shots database"] {}
 	msg "Creating shots database"
 	
 	set progress_msg [translate "Creating DB"]
@@ -1984,7 +1986,7 @@ proc ::dui::pages::SDB_settings::sync_on_startup_change {} {
 }
 
 proc ::dui::pages::SDB_settings::rebuild_db {} {
-	say "" $::settings(sound_button_in)
+	dui sound make button_in
 	if { ![plugins enabled SDB] } return
 	
 	if { $::plugins::SDB::updating_db == 1 } {
@@ -2022,11 +2024,11 @@ proc ::dui::pages::SDB_settings::rebuild_db {} {
 	borg spinner off
 	borg systemui $::android_full_screen_flags
 	after 3000 { set ::plugins::SDB::progress_msg "" }
-	say "" $::settings(sound_button_out)
+	dui sound make button_out
 }
 
 proc ::dui::pages::SDB_settings::resync_db {} {
-	say "" $::settings(sound_button_in)
+	dui sound make button_in
 	if { ![plugins enabled SDB] } return
 	
 	if { $::plugins::SDB::updating_db == 1 } {
@@ -2049,10 +2051,10 @@ proc ::dui::pages::SDB_settings::resync_db {} {
 	borg spinner off
 	borg systemui $::android_full_screen_flags
 	after 3000 { set ::plugins::SDB::progress_msg "" }
-	say "" $::settings(sound_button_out)
+	dui sound make button_out
 }
 
 proc ::dui::pages::SDB_settings::page_done {} {
-	say [translate {Done}] $::settings(sound_button_in)
-	page_to_show_when_off extensions
+	dui say [translate {Done}] button_in
+	dui page load extensions
 }
