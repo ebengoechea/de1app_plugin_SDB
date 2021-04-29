@@ -7,7 +7,7 @@ package require de1_logging 1.0
 namespace eval ::plugins::SDB {
 	variable author "Enrique Bengoechea"
 	variable contact "enri.bengoechea@gmail.com"
-	variable version 1.03
+	variable version 1.04
 	variable github_repo ebengoechea/de1app_plugin_SDB
 	variable name [translate "Shot DataBase"]
 	variable description [translate "Keeps your shot history in a SQLite database, and provides functions to manage shot history files."]
@@ -17,7 +17,7 @@ namespace eval ::plugins::SDB {
 	variable db_version 4
 	variable sqlite_version {}
 	
-	variable min_de1app_version {1.34.27}
+	variable min_de1app_version {1.36}
 	variable filename_clock_format "%Y%m%dT%H%M%S"
 	variable friendly_clock_format "%Y/%m/%d %H:%M"
 	
@@ -87,8 +87,9 @@ namespace eval ::plugins::SDB {
 proc ::plugins::SDB::main {} {	
 	variable settings
 	package require sqlite3
-	
-	msg "Starting the 'Shots DataBase' plugin"
+	check_versions
+		
+	msg -INFO "Starting the 'Shots DataBase' plugin"
 	if { ![info exists ::debugging] } { set ::debugging 0 }
 	
 	set is_created [create]	
@@ -131,9 +132,7 @@ proc ::plugins::SDB::preload {} {
 
 proc ::plugins::SDB::check_settings {} {
 	variable settings
-
-	set settings(version) $::plugins::SDB::version
-	set settings(db_version) $::plugins::SDB::db_version
+	variable version 
 	
 	if {[info exists settings(db_path)] == 0 } {
 		set settings(db_path) "[plugin_directory]/SDB/shots.db" 
@@ -141,6 +140,13 @@ proc ::plugins::SDB::check_settings {} {
 		set settings(db_path) "[plugin_directory]/SDB/shots.db"
 	}
 	
+	if { ![info exists settings(version)] || [package vcompare $settings(version) $version] < 0 } {
+		upgrade_plugin [value_or_default settings(version) ""]
+	}
+	
+	set settings(version) $::plugins::SDB::version
+	set settings(db_version) $::plugins::SDB::db_version
+		
 	ifexists settings(backup_modified_shot_files) 0	
 	ifexists settings(db_persist_desc) 1	
 	ifexists settings(db_persist_series) 0
@@ -158,6 +164,49 @@ proc ::plugins::SDB::check_settings {} {
 	if { ![info exists ::settings(repository_links)] } {
 		set ::settings(repository_links) {}
 	}
+}
+
+proc ::plugins::SDB::upgrade_plugin { previous_version } {
+	variable settings
+	variable version
+	
+	msg -INFO "plugin upgraded from v$previous_version to v$version"
+	if { $previous_version eq "" } {
+		set old_db_file "[homedir]/skins/DSx/DSx_User_Set/shots.db"
+		set new_db_file [db_path]
+		if { [file exists $old_db_file] && ![file exists $new_db_file]} {
+			file rename -force $old_db_file $new_db_file
+			msg -INFO "shots database file moved from old DSx DYE plugin"
+		}
+		
+		set old_settings_file "[homedir]/skins/DSx/DSx_User_Set/DYE_settings.tdb"
+		if { [file exists $old_settings_file] } {
+			set settings_file_contents [encoding convertfrom utf-8 [read_binary_file $old_settings_file]]
+			if {[string length $settings_file_contents] != 0} {
+				array set old_settings $settings_file_contents
+				foreach s {backup_modified_shot_files db_persist_desc db_persist_series sync_on_startup 
+						log_sql_statements last_sync_clock last_sync_analyzed last_sync_inserted last_sync_modified 
+						last_sync_archived last_sync_unarchived last_sync_removed last_sync_unremoved} { 
+					if { [info exists old_settings($s)] } {
+						set settings($s) $old_settings($s)
+					}
+				}
+				
+				msg -INFO "settings copied from old DSx DYE plugin"
+			}			
+		}
+	}
+}
+
+# Verify the minimum required versions of DE1 app is used, otherwise prevents startup.
+proc ::plugins::SDB::check_versions {} {
+	variable version
+	
+	if { [package vcompare [package version de1app] $::plugins::SDB::min_de1app_version] < 0 } {
+		message_page "[translate {Plugin 'Shot DataBase'}] v$version [translate requires] \
+DE1app v$::plugins::SDB::min_de1app_version [translate {or higher}]\r\r[translate {Current DE1app version is}] [package version de1app]" \
+		[translate Ok]
+	}		
 }
 
 proc ::plugins::SDB::msg { {flag ""} args } {
@@ -274,7 +323,7 @@ proc ::plugins::SDB::get_shot_file_path { filename } {
 		} elseif { [file exists "[homedir]/history_archive/$filename"] } {
 			return "[homedir]/history_archive/$filename"
 		} else {
-			msg -NOTICE [namespace current] get_shot_file_path "can't find shot file '$filename'"
+			msg -NOTICE get_shot_file_path "can't find shot file '$filename'"
 		}
 	} elseif { [file exists $filename] } {
 		return $filename
@@ -1856,16 +1905,13 @@ proc ::dui::pages::SDB_settings::setup {} {
 	dui add text $page $x_label $y -text [translate "General options"] -style section_title
 	
 	dui add dcheckbox $page $x_label [incr y 100] -textvariable ::plugins::SDB::settings(db_persist_desc) \
-		-tags db_persist_desc -command db_persist_desc_change \
-		-label [translate "Store shot descriptions on database"] -label_pos {e 100 0}
+		-tags db_persist_desc -command db_persist_desc_change -label [translate "Store shot descriptions on database"]
 
 	dui add dcheckbox $page $x_label [incr y 100] -textvariable ::plugins::SDB::settings(db_persist_series) \
-		-tags db_persist_series -command db_persist_series_change \
-		-label [translate "Store chart series on database"] -label_pos {e 100 0}
+		-tags db_persist_series -command db_persist_series_change -label [translate "Store chart series on database"]
 	
 	dui add dcheckbox $page $x_label [incr y 100] -textvariable ::plugins::SDB::settings(sync_on_startup) \
-		-tags sync_on_startup -command sync_on_startup_change \
-		-label [translate "Resync database to history on startup"] -label_pos {e 100 0}
+		-tags sync_on_startup -command sync_on_startup_change -label [translate "Resync database to history on startup"]
 	
 	# LEFT SIDE, SECOND BLOCK
 	dui add variable $page $x_label 1250 -tags sql_and_schema_versions -anchor nw -justify left 

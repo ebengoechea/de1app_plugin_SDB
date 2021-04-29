@@ -2,6 +2,14 @@
 
 Format based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
+## [1.04] - 2021-04-29
+
+### Changed 
+- Ensure the required minimum version of the DE1app is used (v1.36 for this plugin version)
+- Use DUI instead of DGUI to setup the settings page.
+- Copy shots.db from the DSx plugin on first install.
+- Data dictionary functions are back, now that the DGUI plugin is obsolete.
+
 ## [1.03] - 2021-03-29
 
 ### Changed 
