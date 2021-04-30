@@ -124,7 +124,6 @@ proc ::plugins::SDB::preload {} {
 	check_settings
 	plugins save_settings SDB
 
-	dui symbol set db "\uf1c0" sync "\uf021"
 	dui page add SDB_settings -namespace true
 	
 	return SDB_settings
@@ -1935,7 +1934,7 @@ proc ::dui::pages::SDB_settings::setup {} {
 	
 	incr y [expr {[dui aspect get dbutton bheight -style insight_settings]+100}]
 	dui add dbutton $page $x_label $y -tags rebuild_db -command ::dui::pages::SDB_settings::rebuild_db \
-		-style insight_settings -symbol db -label [translate "Rebuild database"]
+		-style insight_settings -symbol database -label [translate "Rebuild database"]
 
 	incr y [expr {[dui aspect get dbutton bheight -style insight_settings]+200}]
 	dui add variable $page $x_label $y -tags sdb_progress_msg -textvariable {$::plugins::SDB::progress_msg} -style remark
