@@ -1370,7 +1370,7 @@ proc ::plugins::SDB::available_categories { field_name {exc_removed_shots 1} {fi
 		}
 		append sql "sort_number"
 	} else {
-		append sql "MAX(shot.clock)"
+		append sql "MAX(shot.clock) DESC"
 	}
 	
 	if { [llength $fields] == 1 } {
