@@ -124,8 +124,7 @@ proc ::plugins::SDB::preload {} {
 	check_settings
 	plugins save_settings SDB
 
-	dui page add SDB_settings -namespace true
-	
+	dui page add SDB_settings -namespace true -theme default
 	return SDB_settings
 }
 
@@ -155,7 +154,7 @@ proc ::plugins::SDB::check_settings {} {
 	
 	if { ![info exists settings(last_sync_clock)] } {
 		set settings(last_sync_clock) 0
-		foreach fn "analyzed inserted modified archived unarchived removed unremoved" {
+		foreach fn "analyzed inserted modified archived unarchived removed unremoved errors" {
 			set settings(last_sync_$fn) 0
 		}
 	}
@@ -890,7 +889,7 @@ proc ::plugins::SDB::populate { {persist_desc {}} { persist_series {}} {update_s
 	set progress_msg $screen_msg
 	
 	set last_sync_start [clock seconds]
-	foreach fn "analyzed inserted modified archived unarchived removed unremoved" { set "cnt_$fn" 0 }
+	foreach fn "analyzed inserted modified archived unarchived removed unremoved errors" { set "cnt_$fn" 0 }
 	
 	#set last_db_updated [db eval { SELECT CAST(value AS integer) FROM setting WHERE code='last_updated' }]
 	array set db_shots {}
@@ -914,20 +913,30 @@ proc ::plugins::SDB::populate { {persist_desc {}} { persist_series {}} {update_s
 			set db_mtime [lindex $db_shots($f) 1]
 			if { $fmtime > $db_mtime } {
 				log_sql "Processing history/$f, as modif time ($fmtime=[clock format $fmtime -format $friendly_clock_format]) > DB modif time ($db_mtime=[clock format $db_mtime -format $friendly_clock_format])"
-				array set shot [load_shot "[homedir]/history/$f"]
-				persist_shot shot $persist_desc $persist_series 0
-				incr cnt_modified
-				set something_changed 1
+				try {
+					array set shot [load_shot "[homedir]/history/$f"]
+					persist_shot shot $persist_desc $persist_series 0
+					incr cnt_modified
+					set something_changed 1
+				} on error err {
+					msg -ERROR "error reading or persisting shot file 'history/$f': $err"
+					incr cnt_errors
+				}
 			} elseif { $persist_series == 1 && $force_update_series == 1} {
 				set shot_clock [lindex $db_shots($f) 0]
 				set shot_has_series [db exists {SELECT 1 FROM shot_series WHERE shot_clock=$shot_clock LIMIT 1}]
 				if { $shot_has_series != 1 } {
 					log_sql "Processing history/$f, as it needs its chart series added"
-					array set shot [load_shot "[homedir]/history/$f"]
-				
-					persist_shot shot 0 1 0
-					incr cnt_modified
-					set something_changed 1
+					
+					try {
+						array set shot [load_shot "[homedir]/history/$f"]
+						persist_shot shot 0 1 0
+						incr cnt_modified
+						set something_changed 1
+					} on error err {
+						msg -ERROR "error reading or persisting shot file 'history/$f': $err"
+						incr cnt_errors
+					}
 				}
 			} 
 			set sql {}
@@ -949,10 +958,15 @@ proc ::plugins::SDB::populate { {persist_desc {}} { persist_series {}} {update_s
 			}
 		} else {
 			log_sql "Processing history/$f, as it's a new shot file not yet in the database"
-			array set shot [load_shot "[homedir]/history/$f"]
-			persist_shot shot $persist_desc $persist_series 0
-			if { $update_screen == 1 } update
-			incr cnt_inserted
+			try {
+				array set shot [load_shot "[homedir]/history/$f"]
+				persist_shot shot $persist_desc $persist_series 0
+				if { $update_screen == 1 } update
+				incr cnt_inserted
+			} on error err {
+				msg -ERROR "error reading or persisting shot file 'history/$f': $err"
+				incr cnt_errors	
+			}
 		}
 		
 		incr cnt
@@ -971,20 +985,31 @@ proc ::plugins::SDB::populate { {persist_desc {}} { persist_series {}} {update_s
 			set db_mtime [lindex $db_shots($f) 1]
 			if { $fmtime > $db_mtime } {
 				log_sql "Processing history_archive/$f, as modif time ($fmtime=[clock format $fmtime -format $friendly_clock_format]) > DB modif time ($db_mtime=[clock format $db_mtime -format $friendly_clock_format])"
-				array set shot [load_shot "[homedir]/history_archive/$f"]
-				persist_shot shot $persist_desc $persist_series 0
-				incr cnt_modified
-				set something_changed 1
+				try {
+					array set shot [load_shot "[homedir]/history_archive/$f"]
+					persist_shot shot $persist_desc $persist_series 0
+					incr cnt_modified
+					set something_changed 1
+				} on error err {
+					msg -ERROR "error reading or persisting shot file 'history_archive/$f': $err"
+					incr cnt_errors
+				}
 			} elseif { $persist_series == 1 && $force_update_series == 1} {
 				set shot_clock [lindex $db_shots($f) 0]
 				set shot_has_series [db exists {SELECT 1 FROM shot_series WHERE shot_clock=$shot_clock LIMIT 1}]
 				if { $shot_has_series != 1 } {
 					log_sql "Processing history/$f, as it needs its chart series added"
-					array set shot [load_shot "[homedir]/history_archive/$f"]
-					persist_shot shot 0 1 0
-					incr cnt_modified
+					try { 
+						array set shot [load_shot "[homedir]/history_archive/$f"]
+						persist_shot shot 0 1 0
+						incr cnt_modified
+						set something_changed 1
+					} on error err {
+						msg -ERROR "error reading or persisting shot file 'history_archive/$f': $err"
+						incr cnt_errors
+					}
 				}				
-				set something_changed 1
+				#set something_changed 1
 			} 
 			set sql {}
 			if { [lindex $db_shots($f) 2] == 0 } { 
@@ -1005,9 +1030,14 @@ proc ::plugins::SDB::populate { {persist_desc {}} { persist_series {}} {update_s
 			}			
 		} else {
 			log_sql "Processing history_archive/$f, as it's a new shot file not yet in the database"
-			array set shot [load_shot "[homedir]/history_archive/$f"]
-			persist_shot shot $persist_desc $persist_series 0
-			incr cnt_inserted
+			try {
+				array set shot [load_shot "[homedir]/history_archive/$f"]
+				persist_shot shot $persist_desc $persist_series 0
+				incr cnt_inserted
+			} on error err {
+				msg -ERROR "error reading or persisting shot file 'history_archive/$f': $err"
+				incr cnt_errors
+			}			
 		}
 		
 		incr cnt
@@ -1040,7 +1070,7 @@ proc ::plugins::SDB::populate { {persist_desc {}} { persist_series {}} {update_s
 	
 	set settings(last_sync_clock) $last_sync_start 	
 	set settings(last_sync_analyzed) $n
-	foreach fn "inserted modified archived unarchived removed unremoved" {
+	foreach fn "inserted modified archived unarchived removed unremoved errors" {
 		set settings(last_sync_$fn) [subst \$cnt_$fn]
 	}	
 	
@@ -1870,11 +1900,6 @@ namespace eval ::dui::pages::SDB_settings {
 proc ::dui::pages::SDB_settings::setup {} {
 	set page [namespace tail [namespace current]]
 
-	# Use Insight aspect to integrate visually with the settings pages, even if another skin is in use, then revert
-	#	to the active theme at the end.
-	set current_theme [dui theme get]
-	dui theme set default
-
 	# Define styles
 	dui aspect set -type dbutton -style insight_settings {shape round bwidth 570 bheight 165}
 	dui aspect set -type dbutton_symbol -style insight_settings {pos {0.12 0.5} font_size 34 fill "#35363d" 
@@ -1930,7 +1955,8 @@ proc ::dui::pages::SDB_settings::setup {} {
 [translate {# Archived}]: $::plugins::SDB::settings(last_sync_archived)
 [translate {# Unarchived}]: $::plugins::SDB::settings(last_sync_unarchived)
 [translate {# Removed}]: $::plugins::SDB::settings(last_sync_removed)
-[translate {# Unremoved}]: $::plugins::SDB::settings(last_sync_unremoved)}
+[translate {# Unremoved}]: $::plugins::SDB::settings(last_sync_unremoved)
+[translate {# Errors}]: $::plugins::SDB::settings(last_sync_errors)}
 	
 	incr y [expr {[dui aspect get dbutton bheight -style insight_settings]+100}]
 	dui add dbutton $page $x_label $y -tags rebuild_db -command ::dui::pages::SDB_settings::rebuild_db \
@@ -1954,7 +1980,6 @@ proc ::dui::pages::SDB_settings::setup {} {
 	# FOOTER
 	dui add dbutton $page 1035 1460 -tags sdb_settings_ok -style insight_ok -command page_done -label [translate Ok]
 		
-	dui theme set $current_theme
 }
 
 # Invoked automatically after the page is shown
