@@ -2,6 +2,15 @@
 
 Format based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
+## [1.06] - 2021-05-08
+
+### Changed
+- Don't raise a runtime error if parsing a shot file fails while synchronizing. Only log an error and show the total number of errors in a new line in the settings page
+- Sort categories in FSH page by most recently used first
+- Move package dependencies to preload to avoid problems when downgrading versions
+- Set DYE_settings page through 'dui page add' instead of inside setup
+
+
 ## [1.05] - 2021-04-30
 
 ### Changed

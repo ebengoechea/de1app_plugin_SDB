@@ -1,13 +1,11 @@
 #######################################################################################################################
 ### A Decent DE1 app plugin to keep a synchronized SQLite database of shots and manage shots history.
 #######################################################################################################################
-package require de1_dui 1.0
-package require de1_logging 1.0
 
 namespace eval ::plugins::SDB {
 	variable author "Enrique Bengoechea"
 	variable contact "enri.bengoechea@gmail.com"
-	variable version 1.05
+	variable version 1.06
 	variable github_repo ebengoechea/de1app_plugin_SDB
 	variable name [translate "Shot DataBase"]
 	variable description [translate "Keeps your shot history in a SQLite database, and provides functions to manage shot history files."]
@@ -120,6 +118,8 @@ proc ::plugins::SDB::main {} {
 # Paint settings screen
 proc ::plugins::SDB::preload {} {
 	variable data
+	package require de1_dui 1.0
+	package require de1_logging 1.0
 
 	check_settings
 	plugins save_settings SDB
