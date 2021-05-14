@@ -1951,7 +1951,7 @@ proc ::dui::pages::SDB_settings::setup {} {
 #	dui aspect set -type dbutton_label -style insight_ok {font_family notosansuibold font_size 19}
 	
 	# HEADER AND BACKGROUND
-	dui add text $page 1280 100 -tags page_title -text [translate "Shot DataBase Plugin Settings"] -style page_title
+	dui add dtext $page 1280 100 -tags page_title -text [translate "Shot DataBase Plugin Settings"] -style page_title
 		
 	dui add canvas_item rect $page 10 190 2550 1430 -fill "#ededfa" -width 0
 	dui add canvas_item line $page 14 188 2552 189 -fill "#c7c9d5" -width 2
@@ -1963,7 +1963,7 @@ proc ::dui::pages::SDB_settings::setup {} {
 		
 	# LEFT SIDE, FIRST BLOCK
 	set x_label 75; set y 250
-	dui add text $page $x_label $y -text [translate "General options"] -style section_title
+	dui add dtext $page $x_label $y -text [translate "General options"] -style section_title
 	
 	dui add dcheckbox $page $x_label [incr y 100] -textvariable ::plugins::SDB::settings(db_persist_desc) \
 		-tags db_persist_desc -command db_persist_desc_change -label [translate "Store shot descriptions on database"]
@@ -1979,7 +1979,7 @@ proc ::dui::pages::SDB_settings::setup {} {
 	
 	# RIGHT SIDE
 	set x_label 1345; set y 250
-	dui add text $page $x_label $y -text [translate "Manage database"] -style section_title 
+	dui add dtext $page $x_label $y -text [translate "Manage database"] -style section_title 
 	
 	dui add dbutton $page $x_label [incr y 100] -tags resync_db -command resync_db -style insight_settings \
 		-symbol sync -label [translate "Resync database"]
