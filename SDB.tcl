@@ -57,7 +57,7 @@ namespace eval ::plugins::SDB {
 		drink_weight {"Drink weight" "Drink weights" "Weight" "Weights" \
 			extraction shot "" "" "" drink_weight numeric 0 500 1 36 1.0 10.0}
 		drink_tds {"Total Dissolved Solids" "Total Dissolved Solids %" "TDS" "TDS" \
-			extraction shot "" "" "" drink_tds numeric 0 15 2 8 0.01 0.1}
+			extraction shot "" "" "" drink_tds numeric 0 25 2 8 0.01 0.1}
 		drink_ey {"Extraction Yield" "Extraction Yields %" "EY" "EYs" \
 			extraction shot "" "" "" drink_ey numeric 0 30 2 20 0.1 1.0}	
 		espresso_enjoyment {"Enjoyment (0-100)" "Enjoyments" "Enjoyment" "Enjoyment" \
