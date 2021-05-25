@@ -253,8 +253,8 @@ proc ::plugins::SDB::init_sdb_metadata {} {
 		metadata set $field [list sdb_table shot sdb_column $field]
 	}
 	metadata set profile_title [list sdb_table shot sdb_column profile_title]
-	metadata set bean_type {sdb_type_column1 bean_brand}
-	metadata set grinder_setting {sdb_type_column1 grinder_model}
+#	metadata set bean_type {sdb_type_column1 bean_brand}
+#	metadata set grinder_setting {sdb_type_column1 grinder_model}
 	
 	metadata add drinker_name end {
 		domain shot
@@ -1531,7 +1531,7 @@ proc ::plugins::SDB::upgrade { {update_screen 0} } {
 		catch { db eval { ALTER TABLE shot ADD COLUMN bean_price REAL } }
 		catch { db eval { ALTER TABLE shot ADD COLUMN bean_quality_score INTEGER } }
 		catch { db eval { ALTER TABLE shot ADD COLUMN bean_freeze_date DATE } }
-		catch { db eval { ALTER TABLE shot ADD COLUMN bean_unfreeze_date DATE } }`
+		catch { db eval { ALTER TABLE shot ADD COLUMN bean_unfreeze_date DATE } }
 		catch { db eval { ALTER TABLE shot ADD COLUMN bean_open_date DATE } }
 		catch { db eval { ALTER TABLE shot ADD COLUMN grinder_burrs TEXT } }
 		catch { db eval { ALTER TABLE shot ADD COLUMN grinder_rpm TEXT } }
@@ -2324,10 +2324,10 @@ proc ::plugins::SDB::next_shot { wrt_clock {return_columns clock} {exc_removed 1
 proc ::plugins::SDB::available_categories { field_name {exc_removed_shots 1} {filter {}} {use_lookup_table 1} args } {
 	set db [get_db]	
 	
-#	lassign [::plugins::SDB::field_lookup $field_name {data_type db_table lookup_table db_type_column1 db_type_column2}] \
-#		data_type db_table lookup_table db_type_column1 db_type_column2
-	lassign [metadata get $field_name {data_type sdb_table sdb_lookup_table sdb_lookup_order_by sdb_type_column1 sdb_type_column2}] \
-		data_type db_table lookup_table lookup_order_by db_type_column1 db_type_column2 
+	lassign [::plugins::SDB::field_lookup $field_name {data_type db_table lookup_table db_type_column1 db_type_column2}] \
+		data_type db_table lookup_table db_type_column1 db_type_column2
+#	lassign [metadata get $field_name {data_type sdb_table sdb_lookup_table sdb_lookup_order_by sdb_type_column1 sdb_type_column2}] \
+#		data_type db_table lookup_table lookup_order_by db_type_column1 db_type_column2 
 	
 	if { $data_type ne "category" } return
 	if { $use_lookup_table == 1 && $lookup_table eq "" } { set use_lookup_table 0 }	
@@ -2344,8 +2344,8 @@ proc ::plugins::SDB::available_categories { field_name {exc_removed_shots 1} {fi
 		lappend fields "TRIM($db_type_column1) AS $db_type_column1" 
 		lappend grouping_fields "TRIM($db_type_column1)"
 		if { $use_lookup_table == 1 } {							
-			#lassign [::plugins::SDB::field_lookup $db_type_column1 {lookup_table}] type1_db_table
-			set type1_db_table [metadata get $db_type_column1 sdb_lookup_table]
+			lassign [::plugins::SDB::field_lookup $db_type_column1 {lookup_table}] type1_db_table
+#			set type1_db_table [metadata get $db_type_column1 sdb_lookup_table]
 			if { $type1_db_table ne "" } {
 				append extra_from "LEFT JOIN $type1_db_table ON $db_type_column1=${type1_db_table}.$db_type_column1 "
 			}
@@ -2378,7 +2378,7 @@ proc ::plugins::SDB::available_categories { field_name {exc_removed_shots 1} {fi
 	if { [llength $extra_wheres] > 0 } { append sql "AND [join $extra_wheres { AND }] "  }
 	
 	if { $use_lookup_table != 1 } {
-		append sql "GROUP BY [join $grouping_fields { AND }] "
+		append sql "GROUP BY [join $grouping_fields ,] "
 	}		
 
 	#append sql "ORDER BY "
@@ -2386,17 +2386,17 @@ proc ::plugins::SDB::available_categories { field_name {exc_removed_shots 1} {fi
 		# TODO Include sorting in data dictionary!
 		append sql "ORDER BY TRIM($field_name)"
 	} elseif { $use_lookup_table == 1 }  {
-		if { $lookup_order_by ne "" } {
-			append sql "ORDER BY $lookup_order_by"
+#		if { $lookup_order_by ne "" } {
+#			append sql "ORDER BY $lookup_order_by"
+#		}
+		if { $type1_db_table ne ""} {
+			append sql "ORDER BY ${type1_db_table}.sort_number,"
 		}
-#		if { $type1_db_table ne ""} {
-#			append sql "${type1_db_table}.sort_number,"
-#		}
-#		if { $lookup_order_by eq "" } {
-#			append sql $field_name
-#		} else {
-#			append sql $lookup_order_by
-#		}
+		if { $lookup_order_by eq "" } {
+			append sql $field_name
+		} else {
+			append sql $lookup_order_by
+		}
 	} else {
 		append sql "ORDER BY MAX(shot.clock) DESC"
 	}
