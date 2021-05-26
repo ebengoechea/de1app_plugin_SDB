@@ -12,7 +12,7 @@ namespace eval ::plugins::SDB {
 
 	variable db {}
 	variable updating_db 0
-	variable db_version 4
+	variable db_version 5
 	variable sqlite_version {}
 	
 	variable min_de1app_version {1.36}
@@ -253,14 +253,15 @@ proc ::plugins::SDB::init_sdb_metadata {} {
 		metadata set $field [list sdb_table shot sdb_column $field]
 	}
 	metadata set profile_title [list sdb_table shot sdb_column profile_title]
-#	metadata set bean_type {sdb_type_column1 bean_brand}
-#	metadata set grinder_setting {sdb_type_column1 grinder_model}
+	metadata set bean_type {sdb_type_column1 bean_brand}
+	metadata set grinder_setting {sdb_type_column1 grinder_model}
 	
 	metadata add drinker_name end {
 		domain shot
 		category description
 		section people
 		subsection ""
+		source user
 		owner_type plugin
 		owner DYE
 		name "Drinker"
@@ -280,6 +281,7 @@ proc ::plugins::SDB::init_sdb_metadata {} {
 		category description
 		section id
 		subsection ""
+		source user
 		owner_type plugin
 		owner DYE
 		name "Repository link"
@@ -292,14 +294,52 @@ proc ::plugins::SDB::init_sdb_metadata {} {
 		length list
 		default_dui_widget dcombobox
 	}
-	
-	return
-	
+	metadata add bean_desc end {
+		domain shot
+		category description
+		section beans
+		subsection beans_desc
+		source calc
+		owner_type plugin
+		owner DYE
+		name "Beans"
+		name_plural "Beans"
+		short_name "Beans" 
+		short_name_plural "Beans"
+		propagate 0
+		data_type category
+		required 0
+		length 1
+		default_dui_widget dcombobox
+		sdb_table V_shot
+		sdb_column bean_desc
+	}
+	metadata add bean_batch_desc end {
+		domain shot
+		category description
+		section beans
+		subsection beans_batch
+		source calc
+		owner_type plugin
+		owner DYE
+		name "Beans batch"
+		name_plural "Beans batches"
+		short_name "Batch" 
+		short_name_plural "Batches"
+		propagate 0
+		data_type category
+		required 0
+		length 1
+		default_dui_widget dcombobox
+		sdb_table V_shot
+		sdb_column bean_batch_desc
+	}	
 	metadata add bean_variety end {
 		domain shot
 		category description
 		section beans
 		subsection beans_desc
+		source user
 		owner_type plugin
 		owner DYE
 		name "Beans variety"
@@ -320,6 +360,7 @@ proc ::plugins::SDB::init_sdb_metadata {} {
 		category description
 		section beans
 		subsection beans_desc
+		source user
 		owner_type plugin
 		owner DYE
 		name "Beans country"
@@ -341,6 +382,7 @@ proc ::plugins::SDB::init_sdb_metadata {} {
 		category description
 		section beans
 		subsection beans_desc
+		source user
 		owner_type plugin
 		owner DYE
 		name "Beans region"
@@ -354,6 +396,7 @@ proc ::plugins::SDB::init_sdb_metadata {} {
 		default_dui_widget dcombobox
 		sdb_table shot
 		sdb_column bean_region
+		sdb_type_column1 bean_country
 	}
 	metadata add bean_altitude end {
 		domain shot
@@ -362,6 +405,7 @@ proc ::plugins::SDB::init_sdb_metadata {} {
 		subsection beans_desc
 		owner_type plugin
 		owner DYE
+		source user
 		name "Beans altitude"
 		name_plural "Beans altitudes"
 		short_name "Altitude" 
@@ -377,6 +421,7 @@ proc ::plugins::SDB::init_sdb_metadata {} {
 		category description
 		section beans
 		subsection beans_desc
+		source user
 		owner_type plugin
 		owner DYE
 		name "Beans producer"
@@ -396,6 +441,7 @@ proc ::plugins::SDB::init_sdb_metadata {} {
 		category description
 		section beans
 		subsection beans_desc
+		source user
 		owner_type plugin
 		owner DYE
 		name "Beans processing"
@@ -417,6 +463,7 @@ proc ::plugins::SDB::init_sdb_metadata {} {
 		category description
 		section beans
 		subsection beans_batch
+		source user	
 		owner_type plugin
 		owner DYE
 		name "Beans harvest"
@@ -436,6 +483,7 @@ proc ::plugins::SDB::init_sdb_metadata {} {
 		category description
 		section beans
 		subsection beans_batch
+		source user
 		owner_type plugin
 		owner DYE
 		name "Beans price"
@@ -462,6 +510,7 @@ proc ::plugins::SDB::init_sdb_metadata {} {
 		category description
 		section beans
 		subsection beans_batch
+		source user
 		owner_type plugin
 		owner DYE
 		name "Quality score"
@@ -488,6 +537,7 @@ proc ::plugins::SDB::init_sdb_metadata {} {
 		category description
 		section beans
 		subsection beans_batch
+		source user
 		owner_type plugin
 		owner DYE
 		name "Freeze date"
@@ -507,6 +557,7 @@ proc ::plugins::SDB::init_sdb_metadata {} {
 		category description
 		section beans
 		subsection beans_batch
+		source user
 		owner_type plugin
 		owner DYE
 		name "Unfreeze date"
@@ -526,6 +577,7 @@ proc ::plugins::SDB::init_sdb_metadata {} {
 		category description
 		section beans
 		subsection beans_batch
+		source user
 		owner_type plugin
 		owner DYE
 		name "Open date"
@@ -545,6 +597,7 @@ proc ::plugins::SDB::init_sdb_metadata {} {
 		category description
 		section equipment
 		subsection grinder
+		source user
 		owner_type plugin
 		owner DYE
 		name "Grinder burrs"
@@ -558,12 +611,14 @@ proc ::plugins::SDB::init_sdb_metadata {} {
 		default_dui_widget dcombobox
 		sdb_table shot
 		sdb_column grinder_burrs
+		sdb_type_column1 grinder_model
 	}
 	metadata add grinder_rpm end {
 		domain shot
 		category description
 		section equipment
 		subsection grinder
+		source user
 		owner_type plugin
 		owner DYE
 		name "Grinder RPM"
@@ -577,12 +632,14 @@ proc ::plugins::SDB::init_sdb_metadata {} {
 		default_dui_widget dcombobox
 		sdb_table shot
 		sdb_column grinder_rpm
+		sdb_type_column1 grinder_model
 	}
 	metadata add portafilter_model end {
 		domain shot
 		category description
 		section equipment
 		subsection ""
+		source user
 		owner_type plugin
 		owner DYE
 		name "Portafilter"
@@ -602,6 +659,7 @@ proc ::plugins::SDB::init_sdb_metadata {} {
 		category description
 		section equipment
 		subsection ""
+		source user
 		owner_type plugin
 		owner DYE
 		name "Portafilter basket"
@@ -621,6 +679,7 @@ proc ::plugins::SDB::init_sdb_metadata {} {
 		category description
 		section equipment
 		subsection ""
+		source user
 		owner_type plugin
 		owner DYE
 		name "Top filter"
@@ -640,6 +699,7 @@ proc ::plugins::SDB::init_sdb_metadata {} {
 		category description
 		section equipment
 		subsection ""
+		source user
 		owner_type plugin
 		owner DYE
 		name "Bottom filter"
@@ -659,6 +719,7 @@ proc ::plugins::SDB::init_sdb_metadata {} {
 		category description
 		section equipment
 		subsection ""
+		source user
 		owner_type plugin
 		owner DYE
 		name "Distribution tool"
@@ -678,6 +739,7 @@ proc ::plugins::SDB::init_sdb_metadata {} {
 		category description
 		section equipment
 		subsection ""
+		source user
 		owner_type plugin
 		owner DYE
 		name "Distrib. technique"
@@ -697,6 +759,7 @@ proc ::plugins::SDB::init_sdb_metadata {} {
 		category description
 		section equipment
 		subsection ""
+		source user
 		owner_type plugin
 		owner DYE
 		name "Tamper"
@@ -716,6 +779,7 @@ proc ::plugins::SDB::init_sdb_metadata {} {
 		category description
 		section equipment
 		subsection ""
+		source user
 		owner_type plugin
 		owner DYE
 		name "Tamping technique"
@@ -735,6 +799,7 @@ proc ::plugins::SDB::init_sdb_metadata {} {
 		category description
 		section extraction
 		subsection drink
+		source user
 		owner_type plugin
 		owner DYE
 		name "Calculate EY from TDS"
@@ -754,6 +819,7 @@ proc ::plugins::SDB::init_sdb_metadata {} {
 		domain shot
 		category description
 		section extraction
+		source user
 		subsection drink
 		owner_type plugin
 		owner DYE
@@ -777,30 +843,12 @@ proc ::plugins::SDB::init_sdb_metadata {} {
 		sdb_column drink_brix
 	}
 	
-	metadata add refractometer_model end {
-		domain shot
-		category description
-		section equipment
-		subsection ""
-		owner_type plugin
-		owner DYE
-		name "Refractometer model"
-		name_plural "Refractometer models"
-		short_name "Refractometer" 
-		short_name_plural "Refractometers"
-		propagate 1
-		data_type category
-		required 0
-		length 1
-		default_dui_widget dcombobox
-		sdb_table shot
-		sdb_column refractometer_model
-	}
 	metadata add refractometer_temp drink_brix {
 		domain shot
 		category description
 		section extraction
 		subsection drink
+		source user
 		owner_type plugin
 		owner DYE
 		name "Refract. temperature"
@@ -822,11 +870,32 @@ proc ::plugins::SDB::init_sdb_metadata {} {
 		sdb_table shot
 		sdb_column refractometer_temp
 	}
-	metadata add refractometer_technique refractometer_temp {
+	metadata add refractometer_model end {
+		domain shot
+		category description
+		section equipment
+		subsection ""
+		source user
+		owner_type plugin
+		owner DYE
+		name "Refractometer model"
+		name_plural "Refractometer models"
+		short_name "Refractometer" 
+		short_name_plural "Refractometers"
+		propagate 1
+		data_type category
+		required 0
+		length 1
+		default_dui_widget dcombobox
+		sdb_table shot
+		sdb_column refractometer_model
+	}	
+	metadata add refractometer_technique drink_ey {
 		domain shot
 		category description
 		section extraction
 		subsection drink
+		source user
 		owner_type plugin
 		owner DYE
 		name "Refract. technique"
@@ -841,12 +910,33 @@ proc ::plugins::SDB::init_sdb_metadata {} {
 		sdb_table shot
 		sdb_column refractometer_technique
 	}
+	metadata add pour_quality refractometer_technique {
+		domain shot
+		category description
+		section extraction
+		subsection drink
+		source user
+		owner_type plugin
+		owner DYE
+		name "Pour quality"
+		name_plural "Pour quality"
+		short_name "Pour qual." 
+		short_name_plural "Pour qual."
+		propagate 0
+		data_type category
+		required 0
+		length 1
+		default_dui_widget dcombobox
+		sdb_table shot
+		sdb_column pour_quality
+	}
 	
 	metadata add final_beverage_type end {
 		domain shot
 		category description
 		section beverage
 		subsection ""
+		source user
 		owner_type plugin
 		owner DYE
 		name "Beverage type"
@@ -866,6 +956,7 @@ proc ::plugins::SDB::init_sdb_metadata {} {
 		category description
 		section beverage
 		subsection ""
+		source user
 		owner_type plugin
 		owner DYE
 		name "Added liquid"
@@ -885,13 +976,14 @@ proc ::plugins::SDB::init_sdb_metadata {} {
 		category description
 		section beverage
 		subsection ""
+		source user
 		owner_type plugin
 		owner DYE
 		name "Added liquid weight"
 		name_plural "Added liquid weights"
 		short_name "Liquid weight" 
 		short_name_plural "Liquid weights"
-		propagate 1
+		propagate 0
 		data_type number
 		min 0.0
 		max 500.0
@@ -911,13 +1003,14 @@ proc ::plugins::SDB::init_sdb_metadata {} {
 		category description
 		section beverage
 		subsection ""
+		source user
 		owner_type plugin
 		owner DYE
-		name "Added liquid temperature"
-		name_plural "Added liquid temperatures"
-		short_name "Liquid temp." 
+		name "Added liquid temp."
+		name_plural "Added liquid temps."
+		short_name "Liquid temp."
 		short_name_plural "Liquid temps."
-		propagate 1
+		propagate 0
 		data_type number
 		min 0.0
 		max 100.0
@@ -932,7 +1025,97 @@ proc ::plugins::SDB::init_sdb_metadata {} {
 		sdb_table shot
 		sdb_column bev_added_liquid_temp
 	}
-	
+	metadata add bev_added_liquid_quality end {
+		domain shot
+		category description
+		section beverage
+		subsection ""
+		source user
+		owner_type plugin
+		owner DYE
+		name "Added liquid qual."
+		name_plural "Added liquid quals."
+		short_name "Liquid qual."
+		short_name_plural "Liquid quals."
+		propagate 0
+		data_type category
+		required 0
+		length 1
+		default_dui_widget dcombobox
+		sdb_table shot
+		sdb_column bev_added_liquid_quality
+	}	
+	foreach tasting {aroma acidity sweetness body bitterness astringency finish flavour overall} {
+		set tasting_name [string toupper [string range $tasting 0 0]][string range $tasting 1 end]
+		metadata add tasting_${tasting}_quality end [subst {
+			domain shot
+			category description
+			section tasting
+			subsection ""
+			source user
+			owner_type plugin
+			owner DYE
+			name "$tasting_name quality"
+			name_plural "$tasting_name qualities"
+			short_name "$tasting_name qual"
+			short_name_plural "$tasting_name quals."
+			propagate 0
+			data_type number
+			n_decimals 0
+			min 0
+			max 5
+			default 3
+			smallincrement 1
+			bigincrement 1
+			required 0
+			length 1
+			default_dui_widget drater
+			sdb_table shot
+			sdb_column tasting_${tasting}_quality
+		}]
+		metadata add tasting_${tasting}_intensity end [subst {
+			domain shot
+			category description
+			section tasting
+			subsection ""
+			source user
+			owner_type plugin
+			owner DYE
+			name "$tasting_name intensity"
+			name_plural "$tasting_name intensities"
+			short_name "$tasting_name int."
+			short_name_plural "$tasting_name ints."
+			propagate 0
+			data_type number
+			min 0
+			max 5
+			default 3
+			n_decimals 0
+			required 0
+			length 1
+			default_dui_widget drater
+			sdb_table shot
+			sdb_column tasting_${tasting}_intensity
+		}]
+		metadata add tasting_${tasting}_notes end [subst {
+			domain shot
+			category description
+			section tasting
+			subsection ""
+			source user
+			owner_type plugin
+			owner DYE
+			name "$tasting_name notes"
+			name_plural "$tasting_name notes"
+			short_name "$tasting_name notes"
+			short_name_plural "$tasting_name notes"
+			propagate 0
+			data_type long_text
+			default_dui_widget multiline_entry
+			sdb_table shot
+			sdb_column tasting_${tasting}_notes
+		}]
+	}
 	
 #	foreach field {bean_country bean_region bean_variety bean_processing} {
 #		metadata set $field [list sdb_lookup_table [string range $field 5 end]]
@@ -1547,11 +1730,98 @@ proc ::plugins::SDB::upgrade { {update_screen 0} } {
 		catch { db eval { ALTER TABLE shot ADD COLUMN drink_brix REAL } }
 		catch { db eval { ALTER TABLE shot ADD COLUMN refractometer_model TEXT } }
 		catch { db eval { ALTER TABLE shot ADD COLUMN refractometer_temp REAL } }
+		catch { db eval { ALTER TABLE shot ADD COLUMN refractometer_technique REAL } }
+		catch { db eval { ALTER TABLE shot ADD COLUMN pour_quality REAL } }
 		catch { db eval { ALTER TABLE shot ADD COLUMN final_beverage_type TEXT } }
 		catch { db eval { ALTER TABLE shot ADD COLUMN bev_added_liquid_type TEXT } }
 		catch { db eval { ALTER TABLE shot ADD COLUMN bev_added_liquid_weight REAL } }
 		catch { db eval { ALTER TABLE shot ADD COLUMN bev_added_liquid_temp REAL } }
-	
+		catch { db eval { ALTER TABLE shot ADD COLUMN bev_added_liquid_quality TEXT } }
+		catch { db eval { ALTER TABLE shot ADD COLUMN tasting_aroma_quality INTEGER } }
+		catch { db eval { ALTER TABLE shot ADD COLUMN tasting_aroma_intensity INTEGER } }
+		catch { db eval { ALTER TABLE shot ADD COLUMN tasting_aroma_notes TEXT } }
+		catch { db eval { ALTER TABLE shot ADD COLUMN tasting_acidity_quality INTEGER } }
+		catch { db eval { ALTER TABLE shot ADD COLUMN tasting_acidity_intensity INTEGER } }
+		catch { db eval { ALTER TABLE shot ADD COLUMN tasting_acidity_notes TEXT } }
+		catch { db eval { ALTER TABLE shot ADD COLUMN tasting_sweetness_quality INTEGER } }
+		catch { db eval { ALTER TABLE shot ADD COLUMN tasting_sweetness_intensity INTEGER } }
+		catch { db eval { ALTER TABLE shot ADD COLUMN tasting_sweetness_notes TEXT } }
+		catch { db eval { ALTER TABLE shot ADD COLUMN tasting_body_quality INTEGER } }
+		catch { db eval { ALTER TABLE shot ADD COLUMN tasting_body_intensity INTEGER } }
+		catch { db eval { ALTER TABLE shot ADD COLUMN tasting_body_notes TEXT } }
+		catch { db eval { ALTER TABLE shot ADD COLUMN tasting_bitterness_quality INTEGER } }
+		catch { db eval { ALTER TABLE shot ADD COLUMN tasting_bitterness_intensity INTEGER } }
+		catch { db eval { ALTER TABLE shot ADD COLUMN tasting_bitterness_notes TEXT } }
+		catch { db eval { ALTER TABLE shot ADD COLUMN tasting_astringency_quality INTEGER } }
+		catch { db eval { ALTER TABLE shot ADD COLUMN tasting_astringency_intensity INTEGER } }
+		catch { db eval { ALTER TABLE shot ADD COLUMN tasting_astringency_notes TEXT } }
+		catch { db eval { ALTER TABLE shot ADD COLUMN tasting_finish_quality INTEGER } }
+		catch { db eval { ALTER TABLE shot ADD COLUMN tasting_finish_intensity INTEGER } }
+		catch { db eval { ALTER TABLE shot ADD COLUMN tasting_finish_notes TEXT } }
+		catch { db eval { ALTER TABLE shot ADD COLUMN tasting_flavour_quality INTEGER } }
+		catch { db eval { ALTER TABLE shot ADD COLUMN tasting_flavour_intensity INTEGER } }
+		catch { db eval { ALTER TABLE shot ADD COLUMN tasting_flavour_notes TEXT } }
+		catch { db eval { ALTER TABLE shot ADD COLUMN tasting_overall_quality INTEGER } }
+		catch { db eval { ALTER TABLE shot ADD COLUMN tasting_overall_intensity INTEGER } }
+		catch { db eval { ALTER TABLE shot ADD COLUMN tasting_overall_notes TEXT } }
+
+		db eval {
+		DROP VIEW IF EXISTS V_shot;
+			
+		CREATE VIEW IF NOT EXISTS V_shot AS
+		SELECT s.clock, s.filename, 
+			CASE WHEN s.archived=0 THEN '/history/'||s.filename||'.shot' 
+				ELSE '/history_archive/'||s.filename||'.shot' END as rel_path,
+			s.file_modification_date, s.archived, s.removed,
+			strftime('%d/%m/%Y %H:%M',s.clock,'unixepoch','localtime')||' '||COALESCE(s.profile_title,'')||
+			CASE WHEN LENGTH(COALESCE(s.grinder_dose_weight,''))>0 OR LENGTH(COALESCE(s.drink_weight,''))>0 THEN 
+				' - '|| CASE WHEN s.grinder_dose_weight IS NULL OR s.grinder_dose_weight='' THEN '0' ELSE s.grinder_dose_weight END ||'g : '||
+				CASE WHEN s.drink_weight IS NULL OR s.drink_weight='' THEN '0' ELSE s.drink_weight END ||'g'||
+				CASE WHEN LENGTH(COALESCE(s.grinder_dose_weight,''))>0 AND LENGTH(COALESCE(s.drink_weight,''))>0 
+						AND s.grinder_dose_weight > 0 AND s.drink_weight > 0 THEN
+					' (1:' || ROUND(s.drink_weight / s.grinder_dose_weight, 1) || ')'
+				ELSE '' END 
+			ELSE '' END ||
+			CASE WHEN LENGTH(COALESCE(s.bean_brand,''))>0 OR LENGTH(COALESCE(s.bean_type,''))>0 OR LENGTH(COALESCE(s.roast_date,''))>0 THEN
+				' - '|| TRIM(COALESCE(s.bean_brand||' ','')||COALESCE(s.bean_type||' ','')||COALESCE(s.roast_date,''))
+			ELSE '' END ||
+			CASE WHEN LENGTH(COALESCE(s.grinder_model,''))>0 OR LENGTH(COALESCE(s.grinder_setting,''))>0 THEN
+				' - '|| COALESCE(s.grinder_model, '') || 
+					CASE WHEN LENGTH(COALESCE(s.grinder_setting,''))>0 THEN ' @ '||s.grinder_setting ELSE '' END
+			ELSE '' END ||
+			CASE WHEN LENGTH(COALESCE(s.drink_ey,''))>0 OR LENGTH(COALESCE(s.drink_tds,''))>0 OR LENGTH(COALESCE(s.espresso_enjoyment,''))>0 THEN
+				' - '||
+				CASE WHEN LENGTH(COALESCE(s.drink_tds,''))>0 THEN 'TDS '||s.drink_tds||'% ' ELSE '' END ||
+				CASE WHEN LENGTH(COALESCE(s.drink_ey,''))>0 THEN 'EY '||s.drink_ey||'% ' ELSE '' END ||
+				CASE WHEN LENGTH(COALESCE(s.espresso_enjoyment,''))>0 THEN 'Enjoy '||s.espresso_enjoyment||' ' ELSE '' END 
+			ELSE '' END ||
+			CASE WHEN removed=1 THEN ' [REMOVED]' ELSE '' END AS shot_desc,
+			s.profile_title, s.grinder_dose_weight, s.drink_weight, s.extraction_time,
+			s.bean_brand, s.bean_type, s.bean_notes, s.roast_date, s.roast_level,
+			CASE WHEN LENGTH(COALESCE(s.bean_brand,''))>0 OR LENGTH(COALESCE(s.bean_type,''))>0 OR LENGTH(COALESCE(s.roast_date,''))>0 THEN
+				TRIM(COALESCE(s.bean_brand||' ','')||COALESCE(s.bean_type||' ','')||COALESCE(s.roast_date,''))
+				ELSE '' END AS bean_desc,	
+			s.grinder_model, s.grinder_setting, 
+			s.drink_tds, s.drink_ey, s.espresso_enjoyment, s.espresso_notes, s.scentone,
+			s.my_name, s.drinker_name, s.beverage_type, s.skin, s.visualizer_link,
+			s.bean_country, s.bean_region, s.bean_altitude, s.bean_producer, s.bean_variety, s.bean_processing, s.bean_harvest,
+			s.bean_price, s.bean_quality_score, s.bean_freeze_date, s.bean_unfreeze_date, s.bean_open_date, s.grinder_burrs,
+			s.grinder_rpm, s.portafilter_model, s.portafilter_basket, s.filter_top, s.filter_bottom, s.distribution_tool, 
+			s.distribution_technique, s.tamper, s.tamping_technique, s.calc_ey_from_tds, s.drink_brix, s.refractometer_model,
+			s.refractometer_temp, s.refractometer_technique, s.pour_quality, s.final_beverage_type, 
+			s.bev_added_liquid_type, s.bev_added_liquid_weight, s.bev_added_liquid_temp, s.bev_added_liquid_quality,
+			s.tasting_aroma_quality, s.tasting_aroma_intensity, s.tasting_aroma_notes,
+			s.tasting_acidity_quality, s.tasting_acidity_intensity, s.tasting_acidity_notes,
+			s.tasting_sweetness_quality, s.tasting_sweetness_intensity, s.tasting_sweetness_notes,
+			s.tasting_body_quality, s.tasting_body_intensity, s.tasting_body_notes,
+			s.tasting_bitterness_quality, s.tasting_bitterness_intensity, s.tasting_bitterness_notes,
+			s.tasting_astringency_quality, s.tasting_astringency_intensity, s.tasting_astringency_notes,
+			s.tasting_finish_quality, s.tasting_finish_intensity, s.tasting_finish_notes,
+			s.tasting_flavour_quality, s.tasting_flavour_intensity, s.tasting_flavour_notes,
+			s.tasting_overall_quality, s.tasting_overall_intensity, s.tasting_overall_notes
+		FROM shot s;
+		}
+		
 		db eval {			
 			CREATE TABLE IF NOT EXISTS country (code TEXT(2) PRIMARY KEY, bean_country TEXT(50) UNIQUE NOT NULL);
 			CREATE TABLE IF NOT EXISTS variety (bean_variety TEXT(50) PRIMARY KEY, species TEXT(20), regions TEXT);
@@ -2059,18 +2329,6 @@ proc ::plugins::SDB::persist_shot { arr_shot {persist_desc {}} {persist_series {
 	if { $persist_desc == 1 } {
 		if {[db exists {SELECT 1 FROM shot WHERE clock=$shot(clock)}]} {
 			# We only update the description fields, not the others which should not change.
-			db eval { UPDATE shot SET archived=COALESCE($shot(comes_from_archive),0),
-				grinder_dose_weight=$shot(grinder_dose_weight),drink_weight=$shot(drink_weight),
-				bean_brand=$shot(bean_brand),bean_type=$shot(bean_type),
-				bean_notes=$shot(bean_notes), roast_date=$shot(roast_date),roast_level=$shot(roast_level),
-				grinder_model=$shot(grinder_model),grinder_setting=$shot(grinder_setting),
-				drink_tds=$shot(drink_tds),drink_ey=$shot(drink_ey),
-				espresso_enjoyment=$shot(espresso_enjoyment),espresso_notes=$shot(espresso_notes),
-				my_name=$shot(my_name),drinker_name=$shot(drinker_name),scentone=$shot(scentone),
-				file_modification_date=$shot(file_modification_date),skin=$shot(skin),
-				beverage_type=$shot(beverage_type)
-				WHERE clock=$shot(clock) }
-			
 #			db eval { UPDATE shot SET archived=COALESCE($shot(comes_from_archive),0),
 #				grinder_dose_weight=$shot(grinder_dose_weight),drink_weight=$shot(drink_weight),
 #				bean_brand=$shot(bean_brand),bean_type=$shot(bean_type),
@@ -2080,45 +2338,112 @@ proc ::plugins::SDB::persist_shot { arr_shot {persist_desc {}} {persist_series {
 #				espresso_enjoyment=$shot(espresso_enjoyment),espresso_notes=$shot(espresso_notes),
 #				my_name=$shot(my_name),drinker_name=$shot(drinker_name),scentone=$shot(scentone),
 #				file_modification_date=$shot(file_modification_date),skin=$shot(skin),
-#				beverage_type=$shot(beverage_type),bean_country=$shot(bean_country),bean_region=$shot(bean_region),
-#				bean_altitude=$shot(bean_altitude),bean_producer=$shot(bean_producer),bean_processing=$shot(bean_processing)
+#				beverage_type=$shot(beverage_type)
 #				WHERE clock=$shot(clock) }
+			
+			db eval { UPDATE shot SET archived=COALESCE($shot(comes_from_archive),0),
+				grinder_dose_weight=$shot(grinder_dose_weight),drink_weight=$shot(drink_weight),
+				bean_brand=$shot(bean_brand),bean_type=$shot(bean_type),
+				bean_notes=$shot(bean_notes), roast_date=$shot(roast_date),roast_level=$shot(roast_level),
+				grinder_model=$shot(grinder_model),grinder_setting=$shot(grinder_setting),
+				drink_tds=$shot(drink_tds),drink_ey=$shot(drink_ey),
+				espresso_enjoyment=$shot(espresso_enjoyment),espresso_notes=$shot(espresso_notes),
+				my_name=$shot(my_name),drinker_name=$shot(drinker_name),scentone=$shot(scentone),
+				file_modification_date=$shot(file_modification_date),skin=$shot(skin),
+				beverage_type=$shot(beverage_type),bean_country=$shot(bean_country),bean_region=$shot(bean_region),
+				bean_altitude=$shot(bean_altitude),bean_producer=$shot(bean_producer),bean_processing=$shot(bean_processing),
+				bean_harvest=$shot(bean_harvest),bean_price=$shot(bean_price),bean_quality_score=$shot(bean_quality_score),
+				bean_freeze_date=$shot(bean_freeze_date),bean_unfreeze_date=$shot(bean_unfreeze_date), 
+				bean_open_date=$shot(bean_open_date),grinder_burrs=$shot(grinder_burrs),grinder_rpm=$shot(grinder_rpm), 
+				portafilter_model=$shot(portafilter_model),portafilter_basket=$shot(portafilter_basket),
+				filter_top=$shot(filter_top),filter_bottom=$shot(filter_bottom),distribution_tool=shot(distribution_tool),
+				distribution_technique=$shot(distribution_technique),tamper=$shot(tamper),
+				tamping_technique=$shot(tamping_technique),calc_ey_from_tds=$shot(calc_ey_from_tds),
+				drink_brix=$shot(drink_brix),refractometer_model=$shot(refractometer_model),
+				refractometer_temp=$shot(refractometer_temp),refractometer_technique=$shot(refractometer_technique), 
+				pour_quality=$shot(pour_quality),final_beverage_type=$shot(final_beverage_type),
+				bev_added_liquid_type=$shot(bev_added_liquid_type),bev_added_liquid_weight=$shot(bev_added_liquid_weight),
+				bev_added_liquid_temp=$shot(bev_added_liquid_temp),bev_added_liquid_quality=$shot(bev_added_liquid_quality),
+				tasting_aroma_quality=$shot(tasting_aroma_quality),tasting_aroma_intensity=$shot(tasting_aroma_intensity),
+				tasting_aroma_notes=$shot(tasting_aroma_notes),tasting_acidity_quality=$shot(tasting_acidity_quality),
+				tasting_acidity_intensity=$shot(tasting_acidity_intensity),tasting_acidity_notes=$shot(tasting_acidity_notes),
+				tasting_sweetness_quality=$shot(tasting_sweetness_quality),tasting_sweetness_intensity=$shot(tasting_sweetness_intensity),
+				tasting_sweetness_notes=$shot(tasting_sweetness_notes),tasting_body_quality=$shot(tasting_body_quality),
+				tasting_body_intensity=$shot(tasting_body_intensity),tasting_body_notes=$shot(tasting_body_notes),
+				tasting_bitterness_quality=$shot(tasting_bitterness_quality),tasting_bitterness_intensity=$shot(tasting_bitterness_intensity),
+				tasting_bitterness_notes=$shot(tasting_bitterness_notes),tasting_astringency_quality=$shot(tasting_astringency_quality),
+				tasting_astringency_intensity=$shot(tasting_astringency_intensity),tasting_astringency_notes=$shot(tasting_astringency_notes),
+				tasting_finish_quality=$shot(tasting_finish_quality),tasting_finish_intensity=$shot(tasting_finish_intensity),
+				tasting_finish_notes=$shot(tasting_finish_notes),tasting_flavour_quality=$shot(tasting_flavour_quality),
+				tasting_flavour_intensity=$shot(tasting_flavour_intensity),tasting_flavour_notes=$shot(tasting_flavour_notes),
+				tasting_overall_quality=$shot(tasting_overall_quality),tasting_overall_intensity=$shot(tasting_overall_intensity),
+				tasting_overall_notes=$shot(tasting_overall_notes)
+				WHERE clock=$shot(clock) }
 			
 			if { [info exists shot(other_equipment)] } {
 				update_shot_equipment $shot(clock) $shot(other_equipment) 0
 			}						
 		} else {
-			db eval { INSERT INTO shot (clock,filename,archived,
-				profile_title,grinder_dose_weight,drink_weight,extraction_time,
-				bean_brand,bean_type,bean_notes,roast_date,roast_level,grinder_model,grinder_setting,
-				drink_tds,drink_ey,espresso_enjoyment,espresso_notes,my_name,drinker_name,scentone,
-				file_modification_date,skin,beverage_type)
-				VALUES ( $shot(clock),$shot(filename),COALESCE($shot(comes_from_archive),0),
-				$shot(profile_title),$shot(grinder_dose_weight),$shot(drink_weight),
-				$shot(extraction_time),$shot(bean_brand),$shot(bean_type),$shot(bean_notes),$shot(roast_date),
-				$shot(roast_level),$shot(grinder_model),$shot(grinder_setting),$shot(drink_tds),$shot(drink_ey),
-				$shot(espresso_enjoyment),$shot(espresso_notes),$shot(my_name),$shot(drinker_name),$shot(scentone),
-				$shot(file_modification_date),$shot(skin),$shot(beverage_type)) 
-			}
-			
 #			db eval { INSERT INTO shot (clock,filename,archived,
 #				profile_title,grinder_dose_weight,drink_weight,extraction_time,
 #				bean_brand,bean_type,bean_notes,roast_date,roast_level,grinder_model,grinder_setting,
 #				drink_tds,drink_ey,espresso_enjoyment,espresso_notes,my_name,drinker_name,scentone,
-#				file_modification_date,skin,beverage_type,bean_country,bean_region,bean_altitude,bean_producer,
-#				bean_processing)
+#				file_modification_date,skin,beverage_type)
 #				VALUES ( $shot(clock),$shot(filename),COALESCE($shot(comes_from_archive),0),
 #				$shot(profile_title),$shot(grinder_dose_weight),$shot(drink_weight),
 #				$shot(extraction_time),$shot(bean_brand),$shot(bean_type),$shot(bean_notes),$shot(roast_date),
 #				$shot(roast_level),$shot(grinder_model),$shot(grinder_setting),$shot(drink_tds),$shot(drink_ey),
 #				$shot(espresso_enjoyment),$shot(espresso_notes),$shot(my_name),$shot(drinker_name),$shot(scentone),
-#				$shot(file_modification_date),$shot(skin),$shot(beverage_type),$shot(bean_country),$shot(bean_region),
-#				$shot(bean_altitude),$shot(bean_producer),$shot(bean_processing)) 
+#				$shot(file_modification_date),$shot(skin),$shot(beverage_type)) 
 #			}
+			
+			db eval { INSERT INTO shot (clock,filename,archived,
+				profile_title,grinder_dose_weight,drink_weight,extraction_time,
+				bean_brand,bean_type,bean_notes,roast_date,roast_level,grinder_model,grinder_setting,
+				drink_tds,drink_ey,espresso_enjoyment,espresso_notes,my_name,drinker_name,scentone,
+				file_modification_date,skin,beverage_type,bean_country,bean_region,bean_altitude,bean_producer,
+				bean_processing, bean_harvest, bean_price, bean_quality_score, bean_freeze_date, bean_unfreeze_date, 
+				bean_open_date, grinder_burrs, grinder_rpm, portafilter_model, portafilter_basket, filter_top, filter_bottom, 
+				distribution_tool, distribution_technique, tamper, tamping_technique, calc_ey_from_tds, drink_brix, 
+				refractometer_model, refractometer_temp, refractometer_technique, pour_quality, final_beverage_type, 
+				bev_added_liquid_type, bev_added_liquid_weight, bev_added_liquid_temp, bev_added_liquid_quality,
+				tasting_aroma_quality, tasting_aroma_intensity, tasting_aroma_notes,
+				tasting_acidity_quality, tasting_acidity_intensity, tasting_acidity_notes,
+				tasting_sweetness_quality, tasting_sweetness_intensity, tasting_sweetness_notes,
+				tasting_body_quality, tasting_body_intensity, tasting_body_notes,
+				tasting_bitterness_quality, tasting_bitterness_intensity, tasting_bitterness_notes,
+				tasting_astringency_quality, tasting_astringency_intensity, tasting_astringency_notes,
+				tasting_finish_quality, tasting_finish_intensity, tasting_finish_notes,
+				tasting_flavour_quality, tasting_flavour_intensity, tasting_flavour_notes,
+				tasting_overall_quality, tasting_overall_intensity, tasting_overall_notes)
+				VALUES ( $shot(clock),$shot(filename),COALESCE($shot(comes_from_archive),0),
+				$shot(profile_title),$shot(grinder_dose_weight),$shot(drink_weight),
+				$shot(extraction_time),$shot(bean_brand),$shot(bean_type),$shot(bean_notes),$shot(roast_date),
+				$shot(roast_level),$shot(grinder_model),$shot(grinder_setting),$shot(drink_tds),$shot(drink_ey),
+				$shot(espresso_enjoyment),$shot(espresso_notes),$shot(my_name),$shot(drinker_name),$shot(scentone),
+				$shot(file_modification_date),$shot(skin),$shot(beverage_type),$shot(bean_country),$shot(bean_region),
+				$shot(bean_altitude),$shot(bean_producer),$shot(bean_processing),$shot(bean_harvest),$shot(bean_price), 
+				$shot(bean_quality_score),$shot(bean_freeze_date),$shot(bean_unfreeze_date),$shot(bean_open_date),
+				$shot(grinder_burrs),$shot(grinder_rpm),$shot(portafilter_model),$shot(portafilter_basket),
+				$shot(filter_top),$shot(filter_bottom),$shot(distribution_tool),$shot(distribution_technique), 
+				$shot(tamper),$shot(tamping_technique),$shot(calc_ey_from_tds),$shot(drink_brix),$shot(refractometer_model),
+				$shot(refractometer_temp),$shot(refractometer_technique),$shot(pour_quality),$shot(final_beverage_type),
+				$shot(bev_added_liquid_type),$shot(bev_added_liquid_weight),$shot(bev_added_liquid_temp),$shot(bev_added_liquid_quality),
+				$shot(tasting_aroma_quality), $shot(tasting_aroma_intensity), $shot(tasting_aroma_notes),
+				$shot(tasting_acidity_quality), $shot(tasting_acidity_intensity), $shot(tasting_acidity_notes),
+				$shot(tasting_sweetness_quality), $shot(tasting_sweetness_intensity), $shot(tasting_sweetness_notes),
+				$shot(tasting_body_quality), $shot(tasting_body_intensity), $shot(tasting_body_notes),
+				$shot(tasting_bitterness_quality), $shot(tasting_bitterness_intensity), $shot(tasting_bitterness_notes),
+				$shot(tasting_astringency_quality), $shot(tasting_astringency_intensity), $shot(tasting_astringency_notes),
+				$shot(tasting_finish_quality), $shot(tasting_finish_intensity), $shot(tasting_finish_notes),
+				$shot(tasting_flavour_quality), $shot(tasting_flavour_intensity), $shot(tasting_flavour_notes),
+				$shot(tasting_overall_quality), $shot(tasting_overall_intensity), $shot(tasting_overall_notes)
+				)
+			}
 			
 			if { [info exists shot(other_equipment)] && $shot(other_equipment) ne "" } {
 				update_shot_equipment $shot(clock) $shot(other_equipment) 0
-			}									
+			}
 		}
 	} elseif { $persist_series == 1 } {
 		# Prevents breaking a FK constraint (though FK are not supported in this compilation of undrowish) if the shot 
@@ -2324,10 +2649,10 @@ proc ::plugins::SDB::next_shot { wrt_clock {return_columns clock} {exc_removed 1
 proc ::plugins::SDB::available_categories { field_name {exc_removed_shots 1} {filter {}} {use_lookup_table 1} args } {
 	set db [get_db]	
 	
-	lassign [::plugins::SDB::field_lookup $field_name {data_type db_table lookup_table db_type_column1 db_type_column2}] \
-		data_type db_table lookup_table db_type_column1 db_type_column2
-#	lassign [metadata get $field_name {data_type sdb_table sdb_lookup_table sdb_lookup_order_by sdb_type_column1 sdb_type_column2}] \
-#		data_type db_table lookup_table lookup_order_by db_type_column1 db_type_column2 
+#	lassign [::plugins::SDB::field_lookup $field_name {data_type db_table lookup_table db_type_column1 db_type_column2}] \
+#		data_type db_table lookup_table db_type_column1 db_type_column2
+	lassign [metadata get $field_name {data_type sdb_table sdb_lookup_table sdb_lookup_order_by sdb_type_column1 sdb_type_column2}] \
+		data_type db_table lookup_table lookup_order_by db_type_column1 db_type_column2 
 	
 	if { $data_type ne "category" } return
 	if { $use_lookup_table == 1 && $lookup_table eq "" } { set use_lookup_table 0 }	
@@ -2386,17 +2711,17 @@ proc ::plugins::SDB::available_categories { field_name {exc_removed_shots 1} {fi
 		# TODO Include sorting in data dictionary!
 		append sql "ORDER BY TRIM($field_name)"
 	} elseif { $use_lookup_table == 1 }  {
-#		if { $lookup_order_by ne "" } {
-#			append sql "ORDER BY $lookup_order_by"
+		if { $lookup_order_by ne "" } {
+			append sql "ORDER BY $lookup_order_by"
+		}
+#		if { $type1_db_table ne ""} {
+#			append sql "ORDER BY ${type1_db_table}.sort_number,"
 #		}
-		if { $type1_db_table ne ""} {
-			append sql "ORDER BY ${type1_db_table}.sort_number,"
-		}
-		if { $lookup_order_by eq "" } {
-			append sql $field_name
-		} else {
-			append sql $lookup_order_by
-		}
+#		if { $lookup_order_by eq "" } {
+#			append sql $field_name
+#		} else {
+#			append sql $lookup_order_by
+#		}
 	} else {
 		append sql "ORDER BY MAX(shot.clock) DESC"
 	}
