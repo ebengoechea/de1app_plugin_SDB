@@ -1090,6 +1090,8 @@ proc ::plugins::SDB::init_sdb_metadata {} {
 			min 0
 			max 5
 			default 3
+			smallincrement 1
+			bigincrement 1
 			n_decimals 0
 			required 0
 			length 1
