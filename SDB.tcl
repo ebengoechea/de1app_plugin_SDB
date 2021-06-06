@@ -1287,7 +1287,7 @@ proc ::plugins::SDB::load_shot { filename } {
 	array set file_sets $file_props(settings)
 	
 	#set text_fields [::plugins::SDB::field_names "category text long_text date" "shot"]
-	set text_fields [metadata fields -domain shot -category description -data_type {category text long_text date complex}]
+	set text_fields [metadata fields -domain shot -category description -data_type {text long_text date complex boolean}]
 	lappend text_fields profile_title skin beverage_type
 	foreach field_name $text_fields {
 		if { [info exists file_sets($field_name)] } {
@@ -1296,9 +1296,22 @@ proc ::plugins::SDB::load_shot { filename } {
 			set shot_data($field_name) {}
 		}
 	}
+
+	foreach field_name [metadata fields -domain shot -category description -data_type category] {
+		set len [metadata get $field_name length]
+		if { [info exists file_sets($field_name)] } {
+			if { ([string is integer $len] && $len > 1) || [string trim $len] in {n list} } {
+				set shot_data($field_name) [join $file_sets($field_name) ";"]
+			} else {
+				set shot_data($field_name) [string trim $file_sets($field_name)]
+			}
+		} else {
+			set shot_data($field_name) {}
+		}
+	}
 	
 	#  [::plugins::SDB::field_names "numeric" "shot"] 
-	foreach field_name [metadata fields -domain shot -category description -data_type {number boolean}] {
+	foreach field_name [metadata fields -domain shot -category description -data_type number] {
 		if { [info exists file_sets($field_name)]  && $file_sets($field_name) > 0 } {
 			set shot_data($field_name) $file_sets($field_name)
 		} else {
