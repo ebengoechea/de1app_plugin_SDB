@@ -1011,7 +1011,10 @@ proc ::plugins::SDB::field_names { {data_types {} } {db_tables {}} {desc_section
 
 # Builds a full path to a shot file and returns the path if the file exists, otherwise an empty string.
 # If the filename happens to be an integer number, it is assumed it's a clock rather than a filename, and it is
-#	transformed to a shot filename.
+#	transformed to a shot filename. 
+#	BEWARE: The transformation from clock to filename differs between systems (i.e. the clock format call may return
+#		a different string in the tablet than in a PC), so we first check if a shot clock exists in the database,
+#		and only do the direct formatting if it is not.
 # If the filename does not have ".shot" extension, adds it.
 # If the filename is already a full path and the file exists, returns it. If it's just the filename, checks
 # 	existence of file first in history folder, then in history_archive folder.
@@ -1024,7 +1027,12 @@ proc ::plugins::SDB::get_shot_file_path { filename {relative_path 0} } {
 		return
 	}
 	if { [string is integer $filename] } {
-		set filename "[clock format $filename -format $filename_clock_format].shot"
+		set db_filename [shots filename 0 "clock=$filename" 1]
+		if { $db_filename eq {} } {
+			set filename "[clock format $filename -format $filename_clock_format].shot"
+		} else {
+			set filename "$db_filename.shot"
+		}		
 	} elseif { [string range $filename end-4 end] ne ".shot" } { 
 		append filename ".shot"	
 	}
