@@ -125,7 +125,7 @@ proc ::plugins::SDB::preload {} {
 	check_settings
 	plugins save_settings SDB
 
-	dui page add SDB_settings -namespace true -theme default
+	dui page add SDB_settings -namespace true -theme default -type fpdialog
 	return SDB_settings
 }
 
@@ -3160,5 +3160,5 @@ proc ::dui::pages::SDB_settings::resync_db {} {
 
 proc ::dui::pages::SDB_settings::page_done {} {
 	dui say [translate {Done}] button_in
-	dui page load extensions
+	dui page close_dialog
 }
