@@ -15,7 +15,7 @@ namespace eval ::plugins::SDB {
 	variable db_version 4
 	variable sqlite_version {}
 	
-	variable min_de1app_version {1.36}
+	variable min_de1app_version {1.37}
 	variable filename_clock_format "%Y%m%dT%H%M%S"
 	variable friendly_clock_format "%Y/%m/%d %H:%M"
 	

@@ -2,6 +2,20 @@
 
 Format based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
+## [1.08] - 2021-09-18
+
+### Changed
+- `get_shot_file_path` now searches the database first to match a clock value to a filename, as different
+systems (e.g. Android vs Windows 10) may format clock values differently
+- The SDB_settings page now has type "fpdialog"
+
+## [1.07] - 2021-07-28 (Bundled with DE1app 1.37)
+
+### Changed
+- Increase TDS maximum value to 25%.
+- `load_shot` now uses new metadata package
+- Ensure NULL values on all series in case they're shorter than elapsed
+
 ## [1.06] - 2021-05-08
 
 ### Changed
