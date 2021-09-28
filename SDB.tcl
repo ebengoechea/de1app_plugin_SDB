@@ -1216,12 +1216,18 @@ proc ::plugins::SDB::modify_shot_file { path arr_new_settings { backup_file {} }
 			} else {
 				msg "Added new $key='$new_settings($key)' in shot file '[file tail $path]'"
 			}			
-		} elseif { [info exists past_sets($key)] } {			
-			#set old_value $past_sets($key)
-			msg "Modified $key from '$past_sets($key)' to '$new_settings($key)' in shot file '[file tail $path]'"
 		} else {
-			#set old_value {}
-			msg "Added new $key='$new_settings($key)' in shot file '[file tail $path]'"
+			if { [metadata get $key data_type] eq "number" && $new_settings($key) eq "" } {
+				set new_settings($key) 0
+			}
+			
+			if { [info exists past_sets($key)] } {
+				#set old_value $past_sets($key)
+				msg "Modified $key from '$past_sets($key)' to '$new_settings($key)' in shot file '[file tail $path]'"
+			} else {
+				#set old_value {}
+				msg "Added new $key='$new_settings($key)' in shot file '[file tail $path]'"
+			}
 		}
 		
 		set past_sets($key) $new_settings($key)
