@@ -2,6 +2,11 @@
 
 Format based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
+## [1.09] - 2021-10-03
+
+### Changed
+- Ensure empty numeric values are set to 0 in `modify_shot_file`
+
 ## [1.08] - 2021-09-18
 
 ### Changed
