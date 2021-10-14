@@ -2,24 +2,30 @@
 
 Format based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
+## [1.10] - 2021-10-04
+
+### Changed
+- If there is no bluetooth scale connected, so that `settings(drink_weight)` is zero at the end of a shot, save the
+target `drink_weight` in the shot, as defined in the skin (DSx & MimojaCafe) or in the DYE extension (`next_drink_weight`). Also updates `$::DSx_settings(live_graph_weight)` on DSx.
+
 ## [1.09] - 2021-10-03
 
 ### Changed
-- Ensure empty numeric values are set to 0 in `modify_shot_file`
+- Ensure empty numeric values are set to 0 in `modify_shot_file`.
 
 ## [1.08] - 2021-09-18
 
 ### Changed
 - `get_shot_file_path` now searches the database first to match a clock value to a filename, as different
-systems (e.g. Android vs Windows 10) may format clock values differently
-- The SDB_settings page now has type "fpdialog"
+systems (e.g. Android vs Windows 10) may format clock values differently.
+- The SDB_settings page now has type "fpdialog".
 
 ## [1.07] - 2021-07-28 (Bundled with DE1app 1.37)
 
 ### Changed
 - Increase TDS maximum value to 25%.
-- `load_shot` now uses new metadata package
-- Ensure NULL values on all series in case they're shorter than elapsed
+- `load_shot` now uses new metadata package.
+- Ensure NULL values on all series in case they're shorter than elapsed.
 
 ## [1.06] - 2021-05-08
 

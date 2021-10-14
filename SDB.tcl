@@ -5,7 +5,7 @@
 namespace eval ::plugins::SDB {
 	variable author "Enrique Bengoechea"
 	variable contact "enri.bengoechea@gmail.com"
-	variable version 1.09
+	variable version 1.10
 	variable github_repo ebengoechea/de1app_plugin_SDB
 	variable name [translate "Shot DataBase"]
 	variable description [translate "Keeps your shot history in a SQLite database, and provides functions to manage shot history files."]
@@ -2258,9 +2258,10 @@ proc ::plugins::SDB::save_espresso_to_history_hook { args } {
 	variable settings 	
 	if { $::settings(history_saved) != 1 } return
 	#msg "save_espresso_to_history_hook"
+	#set modify_shot_file 0
+	array set new_settings {}
 	
 	set ::settings(repository_links) {}
-	
 	if { [plugins enabled visualizer_upload] &&
 			[info exists ::plugins::visualizer_upload::settings(last_upload_shot)] &&
 			$::plugins::visualizer_upload::settings(last_upload_shot) eq $::settings(espresso_clock) &&
@@ -2270,8 +2271,41 @@ proc ::plugins::SDB::save_espresso_to_history_hook { args } {
 		set repo_link "Visualizer $link" 
 		
 		set ::settings(repository_links) $repo_link
+		#array set new_settings [list repository_links $::settings(repository_links)]
+		set new_settings(repository_links) $repo_link
+	}
+	
+	# If no bluetooth scale, modify the drink_weight to the target defined in the skin or in DYE
+	if { $::settings(drink_weight) == 0 } {
+		set skin $::settings(skin)
+		set drink_weight_modified 0
+		
+		if { $skin eq "DSx" && [info exists ::DSx_settings(saw)] && $::DSx_settings(saw) > 0 } {
+			set ::settings(drink_weight) [round_to_one_digits $::DSx_settings(saw)]
+			set drink_weight_modified 1
+		} elseif { $skin eq "MimojaCafe" && [info exists ::settings(final_desired_shot_volume_advanced)] && 
+				$::settings(final_desired_shot_volume_advanced) > 0 } {
+			set ::settings(drink_weight) [round_to_one_digits $::settings(final_desired_shot_volume_advanced)]
+			set drink_weight_modified 1
+		} elseif { [info exists ::plugins::DYE::settings(next_drink_weight)] && 
+				$::plugins::DYE::settings(next_drink_weight) ne {} } {
+			set ::settings(drink_weight) $::plugins::DYE::settings(next_drink_weight)
+			set drink_weight_modified 1
+		} elseif { [info exists ::settings(final_desired_shot_weight)] && $::settings(final_desired_shot_weight) > 0 } {
+			set ::settings(drink_weight) [round_to_one_digits $::settings(final_desired_shot_weight)]
+			set drink_weight_modified 1
+		}
+		
+		if { $drink_weight_modified } {
+			set new_settings(drink_weight) $::settings(drink_weight)
+			if { $skin eq "DSx" && [value_or_default ::DSx_settings(live_graph_weight) {}] ne $::settings(drink_weight) } {
+				set ::DSx_settings(live_graph_weight) $::settings(drink_weight)
+				::save_DSx_settings
+			}
+		}
+	}
 
-		array set new_settings [list repository_links $::settings(repository_links)]
+	if { [array size new_settings] > 0 } {
 		modify_shot_file $::settings(espresso_clock) new_settings
 		::save_settings
 	}
