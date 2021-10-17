@@ -2,6 +2,11 @@
 
 Format based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
+## [1.11] - 2021-10-05
+
+### Changed
+- Fix saving of `drink_weight` under MimojaCafe in `save_espresso_to_history_hook`
+
 ## [1.10] - 2021-10-04
 
 ### Changed

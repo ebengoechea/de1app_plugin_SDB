@@ -5,7 +5,7 @@
 namespace eval ::plugins::SDB {
 	variable author "Enrique Bengoechea"
 	variable contact "enri.bengoechea@gmail.com"
-	variable version 1.10
+	variable version 1.11
 	variable github_repo ebengoechea/de1app_plugin_SDB
 	variable name [translate "Shot DataBase"]
 	variable description [translate "Keeps your shot history in a SQLite database, and provides functions to manage shot history files."]
@@ -2257,7 +2257,7 @@ proc ::plugins::SDB::update_shot_description { clock arr_new_settings } {
 proc ::plugins::SDB::save_espresso_to_history_hook { args } {
 	variable settings 	
 	if { $::settings(history_saved) != 1 } return
-	#msg "save_espresso_to_history_hook"
+	#msg -INFO "save_espresso_to_history_hook"
 	#set modify_shot_file 0
 	array set new_settings {}
 	
@@ -2271,11 +2271,10 @@ proc ::plugins::SDB::save_espresso_to_history_hook { args } {
 		set repo_link "Visualizer $link" 
 		
 		set ::settings(repository_links) $repo_link
-		#array set new_settings [list repository_links $::settings(repository_links)]
 		set new_settings(repository_links) $repo_link
 	}
 	
-	# If no bluetooth scale, modify the drink_weight to the target defined in the skin or in DYE
+	# If no bluetooth scale, modify last shot's drink_weight to the target defined in the skin or in DYE
 	if { $::settings(drink_weight) == 0 } {
 		set skin $::settings(skin)
 		set drink_weight_modified 0
@@ -2283,10 +2282,18 @@ proc ::plugins::SDB::save_espresso_to_history_hook { args } {
 		if { $skin eq "DSx" && [info exists ::DSx_settings(saw)] && $::DSx_settings(saw) > 0 } {
 			set ::settings(drink_weight) [round_to_one_digits $::DSx_settings(saw)]
 			set drink_weight_modified 1
-		} elseif { $skin eq "MimojaCafe" && [info exists ::settings(final_desired_shot_volume_advanced)] && 
-				$::settings(final_desired_shot_volume_advanced) > 0 } {
-			set ::settings(drink_weight) [round_to_one_digits $::settings(final_desired_shot_volume_advanced)]
-			set drink_weight_modified 1
+		} elseif { $skin eq "MimojaCafe" } {
+			if { $::settings(settings_profile_type) eq "settings_2c" } {
+				if { $::settings(final_desired_shot_weight_advanced) > 0 } { 
+					set ::settings(drink_weight) [round_to_one_digits $::settings(final_desired_shot_weight_advanced)]
+					set drink_weight_modified 1
+				} 
+			} else {
+				if { $::settings(final_desired_shot_weight) > 0 } { 
+					set ::settings(drink_weight) [round_to_one_digits $::settings(final_desired_shot_weight)]
+					set drink_weight_modified 1
+				}
+			}
 		} elseif { [info exists ::plugins::DYE::settings(next_drink_weight)] && 
 				$::plugins::DYE::settings(next_drink_weight) ne {} } {
 			set ::settings(drink_weight) $::plugins::DYE::settings(next_drink_weight)
