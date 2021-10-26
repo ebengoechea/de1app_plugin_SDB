@@ -2,6 +2,14 @@
 
 Format based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
+## [1.13] - 2021-10-26
+
+### New
+- Proc `load_shot` now can load profiles
+
+### Changed
+- Proc `load_shot` has 3 new optional arguments for what to load (chart series, description and/on profile)
+
 ## [1.11] - 2021-10-05
 
 ### Changed
