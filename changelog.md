@@ -2,6 +2,11 @@
 
 Format based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
+## [1.14] - 2021-11-01
+
+### Changed
+- Add chart series `espresso_resistance` and `espresso_resistance_weight` in proc `modify_shot_series`, so they can be uploaded to Visualizer, preventing duplicated shot files (as regular Visualizer auto-upload includes them).
+
 ## [1.13] - 2021-10-26
 
 ### New

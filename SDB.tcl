@@ -5,7 +5,7 @@
 namespace eval ::plugins::SDB {
 	variable author "Enrique Bengoechea"
 	variable contact "enri.bengoechea@gmail.com"
-	variable version 1.13
+	variable version 1.14
 	variable github_repo ebengoechea/de1app_plugin_SDB
 	variable name [translate "Shot DataBase"]
 	variable description [translate "Keeps your shot history in a SQLite database, and provides functions to manage shot history files."]
@@ -1273,7 +1273,7 @@ proc ::plugins::SDB::modify_shot_file { path arr_new_settings { backup_file {} }
 	# Sort the variables in the first part of the file exactly as in the original. 
 	set default_pars {clock espresso_elapsed espresso_pressure espresso_weight espresso_flow espresso_flow_weight \
 		espresso_flow_weight_raw espresso_temperature_basket espresso_temperature_mix espresso_water_dispensed \
-		espresso_pressure_goal espresso_flow_goal espresso_temperature_goal}
+		espresso_pressure_goal espresso_flow_goal espresso_temperature_goal espresso_resistance espresso_resistance_weight}
 	set past_props_keys [array names past_props]	
 	foreach k $default_pars {
 		if { [lsearch $past_props_keys $k] > -1 } {
