@@ -2,6 +2,11 @@
 
 Format based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
+## [1.15] - 2021-11-06
+
+### Changed
+- Avoid errors when shots log longer `espresso_elapsed` charts than other series (reported by Jimmy Leow1). Now only stores in the DB to the shortest length between `espresso_elapsed`, `espresso_pressure` and `espresso_flow` in proc `persist_shot`, and ensures any empty value is set to NULL.
+
 ## [1.14] - 2021-11-01
 
 ### Changed

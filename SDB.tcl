@@ -5,7 +5,7 @@
 namespace eval ::plugins::SDB {
 	variable author "Enrique Bengoechea"
 	variable contact "enri.bengoechea@gmail.com"
-	variable version 1.14
+	variable version 1.15
 	variable github_repo ebengoechea/de1app_plugin_SDB
 	variable name [translate "Shot DataBase"]
 	variable description [translate "Keeps your shot history in a SQLite database, and provides functions to manage shot history files."]
@@ -2177,71 +2177,56 @@ proc ::plugins::SDB::persist_shot { arr_shot {persist_desc {}} {persist_series {
 
 	# Only make series inserts, never updates
 	if { $persist_series == 1 && [db exists {SELECT 1 FROM shot_series WHERE shot_clock=$shot(clock) LIMIT 1}] == 0 } {
-		if { [llength $shot(espresso_elapsed)] > 1 } {
-			set n_pressure [llength $shot(espresso_pressure)]
-			set n_weight [llength $shot(espresso_weight)]
-			set n_flow [llength $shot(espresso_flow)]
-			set n_flow_weight [llength $shot(espresso_flow_weight)]
-			set n_flow_weight_raw [llength $shot(espresso_flow_weight_raw)]
-			set n_temp_basket [llength $shot(espresso_temperature_basket)]
-			set n_temp_mix [llength $shot(espresso_temperature_mix)]
-			set n_water_dispensed [llength $shot(espresso_water_dispensed)]
-			set n_pressure_goal [llength $shot(espresso_pressure_goal)]
-
+		# Sometimes we have longer elapsed_time series than pressure or flow series			
+		set n [::min [llength $shot(espresso_elapsed)] [llength $shot(espresso_pressure)] [llength $shot(espresso_flow)]]
+		if { $n > 1 } {
 			set sql "INSERT INTO shot_series (shot_clock,elapsed,pressure,weight,flow,flow_weight,flow_weight_raw,\
 temperature_basket,temperature_mix,water_dispensed,pressure_goal,flow_goal,temperature_goal) VALUES "
-			for {set i 0} { $i < [llength $shot(espresso_elapsed)] } {incr i} {
-				# I can't make embedding the [lindex ...] statement in the SQL string work, so
-				# I need to create each variable
+			for {set i 0} { $i < $n } {incr i} {
+				# I can't make embedding the [lindex ...] statement in the SQL string work, so I need to create each variable
 				set elapsed [lindex $shot(espresso_elapsed) $i]
-				# From 1.36.5 sometimes elapsed time is logged 
-				if { $i < $n_pressure } {
-					set pressure [lindex $shot(espresso_pressure) $i]
-				} else {
+				set pressure [lindex $shot(espresso_pressure) $i]
+				if { $pressure eq {} } {
 					set pressure "NULL"
 				}
-				if { $i < $n_weight } {
-					set weight [lindex $shot(espresso_weight) $i]
-				} elseif {[info exists weight] == 1} {
-					set weight "NULL"
-				}
-				if { $i < $n_flow } {
-					set flow [lindex $shot(espresso_flow) $i]
-				} else {
+				set flow [lindex $shot(espresso_flow) $i]
+				if { $flow eq {} } {
 					set flow "NULL"
 				}
-				if { $i < $n_flow_weight } {
-					set flow_weight [lindex $shot(espresso_flow_weight) $i]
-				} else {
+				set weight [lindex $shot(espresso_weight) $i]
+				if { $weight eq {} } {
+					set weigth "NULL"
+				}
+				set flow_weight [lindex $shot(espresso_flow_weight) $i]
+				if { $flow_weight eq {} } {
 					set flow_weight "NULL"
 				}
-				if { $i < $n_flow_weight_raw } {
-					set flow_weight_raw [lindex $shot(espresso_flow_weight_raw) $i]
-				} else {
+				set flow_weight_raw [lindex $shot(espresso_flow_weight_raw) $i]
+				if { $flow_weight_raw eq {} } {
 					set flow_weight_raw "NULL"
 				}
-				if { $i < $n_temp_basket } {
-					set temperature_basket [lindex $shot(espresso_temperature_basket) $i]
-				} else {
+				set temperature_basket [lindex $shot(espresso_temperature_basket) $i]
+				if { $temperature_basket eq {} } {
 					set temperature_basket "NULL"
 				}
-				if { $i < $n_temp_mix } {
-					set temperature_mix [lindex $shot(espresso_temperature_mix) $i]
-				} else {
+				set temperature_mix [lindex $shot(espresso_temperature_mix) $i]
+				if { $temperature_mix eq {} } {
 					set temperature_mix "NULL"
 				}
-				if { $i < $n_water_dispensed } {
-					set water_dispensed [lindex $shot(espresso_water_dispensed) $i]
-				} else {
+				set water_dispensed [lindex $shot(espresso_water_dispensed) $i]
+				if { $water_dispensed eq {} } {
 					set water_dispensed "NULL"
-				}
-				if {$i < $n_pressure_goal } {
-					set pressure_goal [lindex $shot(espresso_pressure_goal) $i]
-					set flow_goal [lindex $shot(espresso_flow_goal) $i]
-					set temperature_goal [lindex $shot(espresso_temperature_goal) $i]
-				} else {
+				}				
+				set pressure_goal [lindex $shot(espresso_pressure_goal) $i]
+				if { $pressure_goal eq {} } {
 					set pressure_goal "NULL"
+				}
+				set flow_goal [lindex $shot(espresso_flow_goal) $i]
+				if { $flow_goal eq {} } {
 					set flow_goal "NULL"
+				}
+				set temperature_goal [lindex $shot(espresso_temperature_goal) $i]
+				if { $temperature_goal eq {} } { 
 					set temperature_goal "NULL"
 				}
 
