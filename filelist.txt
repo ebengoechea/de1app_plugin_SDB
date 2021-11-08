@@ -1,0 +1,4 @@
+plugins/SDB/plugin.tcl
+plugins/SDB/SDB.tcl
+plugins/SDB/README.md
+plugins/SDB/changelog.md
