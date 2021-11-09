@@ -2,6 +2,11 @@
 
 Format based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
+## [1.16] - 2021-11-?
+
+### Changed
+- Ensure in proc `plugins::SDB::modify_shot_file` that chart series in modified shot files are saved in exactly the same order as in the original shot by `shot::create_legacy`. This may be related to the duplicated Visualizer shots reported by Ricco Rosini.
+
 ## [1.15] - 2021-11-08
 
 ### New

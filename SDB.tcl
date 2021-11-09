@@ -1273,7 +1273,10 @@ proc ::plugins::SDB::modify_shot_file { path arr_new_settings { backup_file {} }
 	# Sort the variables in the first part of the file exactly as in the original. 
 	set default_pars {clock espresso_elapsed espresso_pressure espresso_weight espresso_flow espresso_flow_weight \
 		espresso_flow_weight_raw espresso_temperature_basket espresso_temperature_mix espresso_water_dispensed \
-		espresso_pressure_goal espresso_flow_goal espresso_temperature_goal espresso_resistance espresso_resistance_weight}
+		espresso_pressure_delta espresso_flow_delta_negative espresso_flow_delta_negative_2x \
+		espresso_resistance espresso_resistance_weight espresso_state_change \
+		espresso_pressure_goal espresso_flow_goal espresso_temperature_goal }
+	
 	set past_props_keys [array names past_props]	
 	foreach k $default_pars {
 		if { [lsearch $past_props_keys $k] > -1 } {
