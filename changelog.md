@@ -2,6 +2,12 @@
 
 Format based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
+## [1.17] - 2021-11-30
+
+### Changed
+- `load_shot` now prefixes chart series variables with `graph_`, otherwise `espresso_pressure` chart seriew was being overwritten by the profile `espresso_presure` variable when both `read_series=1` and `read_profile=1`.
+- `shots` gets a new argument `order_by`.
+
 ## [1.16] - 2021-11-?
 
 ### Changed
