@@ -1442,10 +1442,11 @@ proc ::plugins::SDB::upgrade { {update_screen 0} } {
 			
 		db eval {
 		CREATE TABLE IF NOT EXISTS shot (clock INTEGER PRIMARY KEY, filename TEXT(15) UNIQUE NOT NULL, 
-			file_modification_date INTEGER, archived INTEGER DEFAULT 0, profile_title TEXT, bean_weight REAL, 
-			drink_weight REAL, extraction_time REAL, bean_brand TEXT, bean_type TEXT, 
-			bean_notes TEXT, roast_date TEXT, roast_level TEXT, grinder_model TEXT, grinder_setting TEXT,
-			drink_tds REAL, drink_ey REAL, espresso_enjoyment INT, espresso_notes TEXT, my_name TEXT, scentone TEXT,
+			file_modification_date INTEGER, archived INTEGER DEFAULT 0, profile_title TEXT COLLATE NOCASE, bean_weight REAL, 
+			drink_weight REAL, extraction_time REAL, bean_brand TEXT COLLATE NOCASE, bean_type TEXT COLLATE NOCASE, 
+			bean_notes TEXT COLLATE NOCASE, roast_date TEXT COLLATE NOCASE, roast_level TEXT COLLATE NOCASE, 
+			grinder_model TEXT COLLATE NOCASE, grinder_setting TEXT COLLATE NOCASE, drink_tds REAL, drink_ey REAL, 
+			espresso_enjoyment INT, espresso_notes TEXT COLATE NOCASE, my_name TEXT COLLATE NOCASE, scentone TEXT COLLATE NOCASE,
 			beverage_type TEXT, skin TEXT, visualizer_link TEXT);
 
 		CREATE TABLE IF NOT EXISTS shot_series (shot_clock INTEGER, elapsed REAL,
@@ -1577,41 +1578,41 @@ proc ::plugins::SDB::upgrade { {update_screen 0} } {
 		set progress_msg [translate "Upgrading DB to v5"]
 		if { $update_screen == 1 } update
 		
-		catch { db eval { ALTER TABLE shot ADD COLUMN bean_country TEXT } }
-		catch { db eval { ALTER TABLE shot ADD COLUMN bean_region TEXT } }
-		catch { db eval { ALTER TABLE shot ADD COLUMN bean_altitude TEXT } }
-		catch { db eval { ALTER TABLE shot ADD COLUMN bean_producer TEXT } }
-		catch { db eval { ALTER TABLE shot ADD COLUMN bean_variety TEXT } }
-		catch { db eval { ALTER TABLE shot ADD COLUMN bean_processing TEXT } }
-		catch { db eval { ALTER TABLE shot ADD COLUMN bean_harvest TEXT } }
+		catch { db eval { ALTER TABLE shot ADD COLUMN bean_country TEXT COLLATE NOCASE} }
+		catch { db eval { ALTER TABLE shot ADD COLUMN bean_region TEXT COLLATE NOCASE} }
+		catch { db eval { ALTER TABLE shot ADD COLUMN bean_altitude TEXT COLLATE NOCASE} }
+		catch { db eval { ALTER TABLE shot ADD COLUMN bean_producer TEXT COLLATE NOCASE} }
+		catch { db eval { ALTER TABLE shot ADD COLUMN bean_variety TEXT COLLATE NOCASE} }
+		catch { db eval { ALTER TABLE shot ADD COLUMN bean_processing TEXT COLLATE NOCASE} }
+		catch { db eval { ALTER TABLE shot ADD COLUMN bean_harvest TEXT COLLATE NOCASE} }
 		catch { db eval { ALTER TABLE shot ADD COLUMN bean_price REAL } }
 		catch { db eval { ALTER TABLE shot ADD COLUMN bean_quality_score INTEGER } }
 		catch { db eval { ALTER TABLE shot ADD COLUMN bean_freeze_date DATE } }
 		catch { db eval { ALTER TABLE shot ADD COLUMN bean_unfreeze_date DATE } }
 		catch { db eval { ALTER TABLE shot ADD COLUMN bean_open_date DATE } }
-		catch { db eval { ALTER TABLE shot ADD COLUMN grinder_burrs TEXT } }
-		catch { db eval { ALTER TABLE shot ADD COLUMN grinder_rpm TEXT } }
-		catch { db eval { ALTER TABLE shot ADD COLUMN portafilter_model TEXT } }
-		catch { db eval { ALTER TABLE shot ADD COLUMN portafilter_basket TEXT } }
-		catch { db eval { ALTER TABLE shot ADD COLUMN filter_top TEXT } }
-		catch { db eval { ALTER TABLE shot ADD COLUMN filter_bottom TEXT } }
-		catch { db eval { ALTER TABLE shot ADD COLUMN distribution_tool TEXT } }
-		catch { db eval { ALTER TABLE shot ADD COLUMN distribution_technique TEXT } }
-		catch { db eval { ALTER TABLE shot ADD COLUMN tamper TEXT } }
-		catch { db eval { ALTER TABLE shot ADD COLUMN tamping_technique TEXT } }
+		catch { db eval { ALTER TABLE shot ADD COLUMN grinder_burrs TEXT COLLATE NOCASE} }
+		catch { db eval { ALTER TABLE shot ADD COLUMN grinder_rpm TEXT COLLATE NOCASE} }
+		catch { db eval { ALTER TABLE shot ADD COLUMN portafilter_model TEXT COLLATE NOCASE} }
+		catch { db eval { ALTER TABLE shot ADD COLUMN portafilter_basket TEXT COLLATE NOCASE} }
+		catch { db eval { ALTER TABLE shot ADD COLUMN filter_top TEXT COLLATE NOCASE} }
+		catch { db eval { ALTER TABLE shot ADD COLUMN filter_bottom TEXT COLLATE NOCASE} }
+		catch { db eval { ALTER TABLE shot ADD COLUMN distribution_tool TEXT COLLATE NOCASE} }
+		catch { db eval { ALTER TABLE shot ADD COLUMN distribution_technique TEXT COLLATE NOCASE} }
+		catch { db eval { ALTER TABLE shot ADD COLUMN tamper TEXT COLLATE NOCASE} }
+		catch { db eval { ALTER TABLE shot ADD COLUMN tamping_technique TEXT COLLATE NOCASE} }
 		catch { db eval { ALTER TABLE shot ADD COLUMN calc_ey_from_tds INTEGER } }
 		catch { db eval { ALTER TABLE shot ADD COLUMN drink_brix REAL } }
-		catch { db eval { ALTER TABLE shot ADD COLUMN refractometer_model TEXT } }
+		catch { db eval { ALTER TABLE shot ADD COLUMN refractometer_model TEXT COLLATE NOCASE} }
 		catch { db eval { ALTER TABLE shot ADD COLUMN refractometer_temp REAL } }
-		catch { db eval { ALTER TABLE shot ADD COLUMN final_beverage_type TEXT } }
-		catch { db eval { ALTER TABLE shot ADD COLUMN bev_added_liquid_type TEXT } }
+		catch { db eval { ALTER TABLE shot ADD COLUMN final_beverage_type TEXT COLLATE NOCASE} }
+		catch { db eval { ALTER TABLE shot ADD COLUMN bev_added_liquid_type TEXT COLLATE NOCASE} }
 		catch { db eval { ALTER TABLE shot ADD COLUMN bev_added_liquid_weight REAL } }
 		catch { db eval { ALTER TABLE shot ADD COLUMN bev_added_liquid_temp REAL } }
 	
 		db eval {			
-			CREATE TABLE IF NOT EXISTS country (code TEXT(2) PRIMARY KEY, bean_country TEXT(50) UNIQUE NOT NULL);
-			CREATE TABLE IF NOT EXISTS variety (bean_variety TEXT(50) PRIMARY KEY, species TEXT(20), regions TEXT);
-			CREATE TABLE IF NOT EXISTS processing (bean_processing TEXT(50) PRIMARY KEY, sort INTEGER);
+			CREATE TABLE IF NOT EXISTS country (code TEXT(2) PRIMARY KEY, bean_country TEXT(50) UNIQUE NOT NULL COLLATE NOCASE);
+			CREATE TABLE IF NOT EXISTS variety (bean_variety TEXT(50) PRIMARY KEY COLLATE NOCASE, species TEXT(20) COLLATE NOCASE, regions TEXT COLLATE NOCASE);
+			CREATE TABLE IF NOT EXISTS processing (bean_processing TEXT(50) PRIMARY KEY COLLATE NOCASE, sort INTEGER);
 			
 			CREATE VIEW IF NOT EXISTS V_country_all AS
 			SELECT DISTINCT bean_country FROM 
@@ -1619,7 +1620,7 @@ proc ::plugins::SDB::upgrade { {update_screen 0} } {
 				GROUP BY bean_country
 				UNION ALL
 				SELECT bean_country FROM country)
-			ORDER BY bean_country;
+			ORDER BY bean_country COLLATE NOCASE;
 			
 			CREATE VIEW IF NOT EXISTS V_variety_all AS
 			SELECT DISTINCT bean_variety FROM 
@@ -1627,7 +1628,7 @@ proc ::plugins::SDB::upgrade { {update_screen 0} } {
 				GROUP BY bean_variety
 				UNION ALL
 				SELECT bean_variety FROM variety)
-			ORDER BY bean_variety;
+			ORDER BY bean_variety COLLATE NOCASE;
 			
 			CREATE VIEW IF NOT EXISTS V_processing_all AS
 			SELECT DISTINCT bean_processing FROM 
@@ -1639,7 +1640,7 @@ proc ::plugins::SDB::upgrade { {update_screen 0} } {
 				AND p.bean_processing IS NULL
 			GROUP BY s.bean_processing
 			)
-			ORDER BY sort;
+			ORDER BY sort COLLATE NOCASE;
 		}
 		
 		# See https://3.basecamp.com/3671212/buckets/7351439/messages/3793185604
@@ -2379,7 +2380,7 @@ proc ::plugins::SDB::shots { {return_columns clock} {exc_removed 1} {filter {}} 
 	if { $order_by ne {} } {
 		append sql " ORDER BY $order_by"
 	}
-	append sql " LIMIT $max_rows"
+	append sql " LIMIT $max_rows COLLATE NOCASE"
 		
 	msg -INFO [namespace current] shots: "SQL: $sql"
 	if { [llength $return_columns] == 1 } {

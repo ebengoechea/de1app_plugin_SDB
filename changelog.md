@@ -2,6 +2,11 @@
 
 Format based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
+## [1.18] - ?
+
+### Changed
+- Make all text columns searching case-insensitive (COLLATE NOCASE). This is done on table creation, so only affects if the database is rebuilt. Note that this does NOT work on Androwish 2019 on tablet for doing case-insensitive searches on `V_shot.shot_desc`.
+
 ## [1.17] - 2021-11-30
 
 ### Changed
