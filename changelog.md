@@ -2,10 +2,11 @@
 
 Format based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
-## [1.18] - ?
+## [1.18] - 2021-12-06
 
 ### Changed
 - Make all text columns searching case-insensitive (COLLATE NOCASE). This is done on table creation, so only affects if the database is rebuilt. Note that this does NOT work on Androwish 2019 on tablet for doing case-insensitive searches on `V_shot.shot_desc`.
+- Treat `grinder_setting` as a numeric value (even if defined as a "category" in app_metadata.tcl) in `load_shot`, so that zero is turned into an empty string. Do this to prevent empty values (normally when "Clear shot data" was used) in the grinder setting field in DYE.
 
 ## [1.17] - 2021-11-30
 

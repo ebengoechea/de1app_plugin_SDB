@@ -5,7 +5,7 @@
 namespace eval ::plugins::SDB {
 	variable author "Enrique Bengoechea"
 	variable contact "enri.bengoechea@gmail.com"
-	variable version 1.17
+	variable version 1.18
 	variable github_repo ebengoechea/de1app_plugin_SDB
 	variable name [translate "Shot DataBase"]
 	variable description [translate "Keeps your shot history in a SQLite database, and provides functions to manage shot history files."]
@@ -1125,6 +1125,12 @@ proc ::plugins::SDB::load_shot { filename {read_series 1} {read_description 1} {
 	
 	if { [string is true $read_description] } {
 		set text_fields [metadata fields -domain shot -category description -data_type {category text long_text date complex}]
+		# We need to treat grinder_setting differently because it's declared as a category, but treated as number by some skins
+		# (with empty=zero)
+		set idx [lsearch -exact $text_fields grinder_setting]
+		if { $idx > -1 } {
+			set text_fields [lreplace $text_fields $idx $idx]
+		}
 	} else {
 		set text_fields {}
 	}
@@ -1144,7 +1150,7 @@ proc ::plugins::SDB::load_shot { filename {read_series 1} {read_description 1} {
 	}
 	
 	if { [string is true $read_description] } {	
-		foreach field_name [metadata fields -domain shot -category description -data_type {number boolean}] {
+		foreach field_name [concat grinder_setting [metadata fields -domain shot -category description -data_type {number boolean}]] {
 			if { [info exists file_sets($field_name)]  && $file_sets($field_name) > 0 } {
 				set shot_data($field_name) $file_sets($field_name)
 			} else {
