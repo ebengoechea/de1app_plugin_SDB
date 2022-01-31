@@ -1190,7 +1190,7 @@ proc ::plugins::SDB::load_shot { filename {read_series 1} {read_description 1} {
 		}
 		
 		if { $shot_data(settings_profile_type) eq "settings_2c2" } {
-			set ::settings(settings_profile_type) "settings_2c"
+			set shot_data(settings_profile_type) "settings_2c"
 		}
 	}
 
@@ -1365,7 +1365,8 @@ proc ::plugins::SDB::create { {recreate 0} {make_backup 1} {update_screen 0} } {
 		}
 	}
 	
-	dui say [translate "Creating shots database"] {}
+	borg toast [translate "Creating shots database"] 1
+	dui say [translate "Creating shots database"] page_in
 	msg "Creating shots database"
 	
 	set progress_msg [translate "Creating DB"]
@@ -1444,7 +1445,11 @@ proc ::plugins::SDB::upgrade { {update_screen 0} } {
 
 	if { $disk_db_version <= 0 } {
 		set progress_msg [translate "Upgrading DB to v1"]
-		if { $update_screen == 1 } update
+		if { $update_screen == 1 } {
+			update
+		} else {
+			borg toast $progress_msg 1
+		}
 			
 		db eval {
 		CREATE TABLE IF NOT EXISTS shot (clock INTEGER PRIMARY KEY, filename TEXT(15) UNIQUE NOT NULL, 
@@ -1484,13 +1489,21 @@ proc ::plugins::SDB::upgrade { {update_screen 0} } {
 	
 	if { $disk_db_version <= 1 } {
 		set progress_msg [translate "Upgrading DB to v2"]
-		if { $update_screen == 1 } update		
+		if { $update_screen == 1 } {
+			update
+		} else {
+			borg toast $progress_msg 1
+		}
 		rename_columns shot bean_weight grinder_dose_weight
 	}
 		
 	if { $disk_db_version <= 2 } {
 		set progress_msg [translate "Upgrading DB to v3"]
-		if { $update_screen == 1 } update		
+		if { $update_screen == 1 } {
+			update
+		} else {
+			borg toast $progress_msg 1
+		}
 		catch { db eval { ALTER TABLE shot ADD COLUMN drinker_name TEXT} }
 		catch { db eval { ALTER TABLE shot ADD COLUMN removed INTEGER DEFAULT 0} }
 		
@@ -1534,7 +1547,11 @@ proc ::plugins::SDB::upgrade { {update_screen 0} } {
 	# then shot_desc was NULL. Also on the very first .shot files in DE1 the profile_title could be empty.
 	if { $disk_db_version <= 3 } {
 		set progress_msg [translate "Upgrading DB to v4"]
-		if { $update_screen == 1 } update
+		if { $update_screen == 1 } {
+			update
+		} else {
+			borg toast $progress_msg 1
+		}
 		
 		db eval {
 		DROP VIEW IF EXISTS V_shot;
@@ -1582,7 +1599,11 @@ proc ::plugins::SDB::upgrade { {update_screen 0} } {
 	# v5 adds the many new description fields.
 	if { $disk_db_version <= 4 } {
 		set progress_msg [translate "Upgrading DB to v5"]
-		if { $update_screen == 1 } update
+		if { $update_screen == 1 } {
+			update
+		} else {
+			borg toast $progress_msg 1
+		}
 		
 		catch { db eval { ALTER TABLE shot ADD COLUMN bean_country TEXT COLLATE NOCASE} }
 		catch { db eval { ALTER TABLE shot ADD COLUMN bean_region TEXT COLLATE NOCASE} }
@@ -1908,6 +1929,7 @@ proc ::plugins::SDB::populate { {persist_desc {}} { persist_series {}} {update_s
 	set updating_db 1	
 	set screen_msg [translate "Synchronizing DB"]
 	set progress_msg $screen_msg
+	msg $screen_msg
 	
 	set last_sync_start [clock seconds]
 	foreach fn "analyzed inserted modified archived unarchived removed unremoved errors" { set "cnt_$fn" 0 }
@@ -1921,9 +1943,17 @@ proc ::plugins::SDB::populate { {persist_desc {}} { persist_series {}} {update_s
 	set files [lsort -dictionary [glob -nocomplain -tails -directory "[homedir]/history/" *.shot]]
 	set afiles [lsort -dictionary [glob -nocomplain -tails -directory "[homedir]/history_archive/" *.shot]]
 	set n [expr {[llength $files]+[llength $afiles]}]
+	set msg_every [expr {int($n/10)}]
+	if { $msg_every > 10 } {
+		set msg_every 10
+	}
 	set cnt 1
 	set progress_msg "$screen_msg: 0/$n (0\%)"
-	if { $update_screen == 1 } { update }
+	if { $update_screen == 1 } { 
+		update 		
+	} else {
+		borg toast $progress_msg 1
+	}
 	
 	foreach f $files {
 		if { [info exists db_shots($f)] } {
@@ -1991,10 +2021,14 @@ proc ::plugins::SDB::populate { {persist_desc {}} { persist_series {}} {update_s
 		}
 		
 		incr cnt
-		if {[expr {$cnt % 10}] == 0 } {
+		if {[expr {$cnt % $msg_every}] == 0 } {
 			set perc [expr {int($cnt*100.0/$n)}]
 			set progress_msg "$screen_msg: $cnt/$n ($perc\%)"
-			if { $update_screen == 1 } { update }
+			if { $update_screen == 1 } { 
+				update
+			} else {
+				borg toast $progress_msg 1
+			}
 		}
 	}
 	
@@ -2062,10 +2096,14 @@ proc ::plugins::SDB::populate { {persist_desc {}} { persist_series {}} {update_s
 		}
 		
 		incr cnt
-		if {[expr {$cnt % 10}] == 0 } {
+		if {[expr {$cnt % $msg_every}] == 0 } {
 			set perc [expr {int($cnt*100.0/$n)}]			
 			set progress_msg "$screen_msg: $cnt/$n ($perc\%)"
-			if { $update_screen == 1 } { update }
+			if { $update_screen == 1 } { 
+				update 
+			} else {
+				borg toast $progress_msg 1
+			}
 		}
 	}
 
@@ -2084,7 +2122,11 @@ proc ::plugins::SDB::populate { {persist_desc {}} { persist_series {}} {update_s
 	}
 
 	set progress_msg "$screen_msg: $n/$n (100\%)"
-	if { $update_screen == 1} update
+	if { $update_screen == 1} {
+		update
+	} else {
+		borg toast $progress_msg 1
+	}
 #	after 3000 { set progress_msg "" } 
 	
 	update_last_updated
@@ -2094,9 +2136,10 @@ proc ::plugins::SDB::populate { {persist_desc {}} { persist_series {}} {update_s
 	foreach fn "inserted modified archived unarchived removed unremoved errors" {
 		set settings(last_sync_$fn) [subst \$cnt_$fn]
 	}	
-	
+		
 	plugins save_settings SDB
 	set updating_db 0
+	msg "DB synchronization finished"
 }
 
 proc ::plugins::SDB::update_last_updated {} {
