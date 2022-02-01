@@ -2,6 +2,12 @@
 
 Format based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
+## [1.19] - 2022-02-01
+
+### Changed
+- Ensure that the `advanced_shot` and other parameters of profiles are correct and consistent by invoking `::profile::read_legacy` on `load_shot` when `read_profile=1`, instead of just reading the profile variables.
+- Bug fix: command `load_shot` was wrongly setting the global `settings_profile_type` instead of the loaded shot variable in some cases.
+
 ## [1.18] - 2021-12-06
 
 ### Changed
