@@ -1125,21 +1125,16 @@ proc ::plugins::SDB::load_shot { filename {read_series 1} {read_description 1} {
 	
 	if { [string is true $read_description] } {
 		set text_fields [metadata fields -domain shot -category description -data_type {category text long_text date complex}]
+		lappend text_fields profile_title skin beverage_type
 		# We need to treat grinder_setting differently because it's declared as a category, but treated as number by some skins
 		# (with empty=zero)
+		
 		set idx [lsearch -exact $text_fields grinder_setting]
 		if { $idx > -1 } {
 			set text_fields [lreplace $text_fields $idx $idx]
 		}
 	} else {
 		set text_fields {}
-	}
-#	if { [string is true $read_profile] } {
-#		lappend text_fields profile profile_filename profile_title original_profile_title profile_to_save beverage_type \
-#			advanced_shot author settings_profile_type profile_notes profile_language
-#	} else
-	if { [string is true $read_description] } {
-		lappend text_fields profile_title skin beverage_type
 	}
 	
 	foreach field_name $text_fields {
@@ -1186,20 +1181,6 @@ proc ::plugins::SDB::load_shot { filename {read_series 1} {read_description 1} {
 		foreach field_name [array names profile] {
 			set shot_data($field_name) $profile($field_name)
 		}
-#		foreach field_name [concat profile profile_filename profile_to_save original_profile_title profile_has_changed [::profile_vars]] {  
-#			if { [info exists file_sets($field_name)] } {
-#				set shot_data($field_name) $file_sets($field_name)
-#			} else {
-#				set shot_data($field_name) 0
-#			}
-#		}
-#		
-#		set shot_data(settings_profile_type) [::profile::fix_profile_type $shot_data(settings_profile_type)]
-#		if { $shot_data(settings_profile_type) eq "settings_2a" } {
-#			
-#		} elseif { $shot_data(settings_profile_type) eq "settings_2b" } {
-#			
-#		}
 	}
 
 	
