@@ -5,7 +5,7 @@
 namespace eval ::plugins::SDB {
 	variable author "Enrique Bengoechea"
 	variable contact "enri.bengoechea@gmail.com"
-	variable version 1.19
+	variable version 1.20
 	variable github_repo ebengoechea/de1app_plugin_SDB
 	variable name [translate "Shot DataBase"]
 	variable description [translate "Keeps your shot history in a SQLite database, and provides functions to manage shot history files."]
@@ -149,7 +149,7 @@ proc ::plugins::SDB::check_settings {} {
 	ifexists settings(backup_modified_shot_files) 0	
 	ifexists settings(db_persist_desc) 1	
 	ifexists settings(db_persist_series) 0
-	ifexists settings(sync_on_startup) 1
+	ifexists settings(sync_on_startup) 0
 	ifexists settings(log_sql_statements) 0
 	ifexists settings(github_latest_url) "https://api.github.com/repos/ebengoechea/de1app_plugin_SDB/releases/latest"
 	

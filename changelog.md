@@ -2,6 +2,11 @@
 
 Format based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
+## [1.20] - 2022-03-01
+
+### Changed
+- Change the default for `sync_on_startup` to 0 (disabled) for new users, in preparation for DE1 app v1.39, as it's producing long startups for some users.
+
 ## [1.19] - 2022-02-01
 
 ### Changed
