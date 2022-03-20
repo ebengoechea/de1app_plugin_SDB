@@ -1154,8 +1154,12 @@ proc ::plugins::SDB::load_shot { filename {read_series 1} {read_description 1} {
 	
 	if { [string is true $read_description] } {	
 		foreach field_name [concat grinder_setting [metadata fields -domain shot -category description -data_type {number boolean}]] {
-			if { [info exists file_sets($field_name)]  && $file_sets($field_name) > 0 } {
-				set shot_data($field_name) $file_sets($field_name)
+			if { [info exists file_sets($field_name)] } {
+				# grinder_setting is a string
+				# other fields are numbers and must be non-zero & positive
+				if { $field_name == "grinder_setting" || $file_sets($field_name) > 0 } {
+					set shot_data($field_name) $file_sets($field_name)
+				}
 			} else {
 				# We use {} instead of 0 to get DB NULLs and empty values in entry textboxes
 				set shot_data($field_name) {}
