@@ -1034,7 +1034,7 @@ proc ::plugins::SDB::get_shot_file_path { filename {relative_path 0} } {
 			set filename "$db_filename.shot"
 		}		
 	} elseif { [string range $filename end-4 end] ne ".shot" } { 
-		append filename ".shot"	
+		append filename ".shot" 
 	}
 	
 	if { [file dirname $filename] eq "." } {
@@ -1083,22 +1083,6 @@ proc ::plugins::SDB::load_shot { filename {read_series 1} {read_description 1} {
 	set shot_data(clock) $file_props(clock)
 	set shot_data(date_time) [clock format $file_props(clock) -format {%a, %d %b %Y   %I:%M%p}]
 	
-	if {[llength [ifexists file_props(espresso_elapsed)]] > 0} {
-		if { [string is true $read_series] } {
-			set shot_data(espresso_elapsed) $file_props(espresso_elapsed)
-		}
-		if { [string is true $read_description] } {
-			set shot_data(extraction_time) [round_to_one_digits [expr ([lindex $file_props(espresso_elapsed) end]+0.05)]]
-		}
-	} else {
-		if { [string is true $read_series] } {
-			set shot_data(espresso_elapsed) {0.0}
-		}
-		if { [string is true $read_description] } {
-			set shot_data(extraction_time) 0.0
-		}
-	}
-	
 	if { [string is true $read_series] } {
 		# We need the "graph_" prefix because all variables are in the same array, and some overlap between the
 		# settings and graph (i.e. espresso_pressure is both a chart series name and a profile variable) 
@@ -1110,6 +1094,29 @@ proc ::plugins::SDB::load_shot { filename {read_series 1} {read_description 1} {
 			} else {
 				set shot_data(graph_$field_name) {0.0}
 			}
+		}
+	}
+
+	# find min length over some mandatory series
+	set field_len_min [::min \
+						[llength $shot_data(graph_espresso_elapsed)] \
+						[llength $shot_data(graph_espresso_pressure)] \
+						[llength $shot_data(graph_espresso_flow)]]
+	if {[llength [ifexists file_props(espresso_elapsed)]] > 0} {
+		if { [string is true $read_series] } {
+			# trim time series (x-axis) to match other series in length (elapsed series is sometimes longer)
+			set shot_data(espresso_elapsed) [lrange $file_props(espresso_elapsed) 0 $field_len_min-1]
+			set shot_data(graph_espresso_elapsed) $shot_data(espresso_elapsed)
+		}
+		if { [string is true $read_description] } {
+			set shot_data(extraction_time) [round_to_one_digits [expr ([lindex $shot_data(espresso_elapsed) end]+0.05)]]
+		}
+	} else {
+		if { [string is true $read_series] } {
+			set shot_data(espresso_elapsed) {0.0}
+		}
+		if { [string is true $read_description] } {
+			set shot_data(extraction_time) 0.0
 		}
 	}
 	
@@ -2155,7 +2162,7 @@ proc ::plugins::SDB::persist_shot { arr_shot {persist_desc {}} {persist_series {
 		if {[db exists {SELECT 1 FROM shot WHERE clock=$shot(clock)}]} {
 			# We only update the description fields, not the others which should not change.
 			db eval { UPDATE shot SET archived=COALESCE($shot(comes_from_archive),0),
-				grinder_dose_weight=$shot(grinder_dose_weight),drink_weight=$shot(drink_weight),
+				grinder_dose_weight=$shot(grinder_dose_weight),drink_weight=$shot(drink_weight),extraction_time=$shot(extraction_time),
 				bean_brand=$shot(bean_brand),bean_type=$shot(bean_type),
 				bean_notes=$shot(bean_notes), roast_date=$shot(roast_date),roast_level=$shot(roast_level),
 				grinder_model=$shot(grinder_model),grinder_setting=$shot(grinder_setting),
