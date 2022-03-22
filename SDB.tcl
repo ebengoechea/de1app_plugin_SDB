@@ -1059,6 +1059,7 @@ proc ::plugins::SDB::get_shot_file_path { filename {relative_path 0} } {
 	return $filename
 }
 
+
 # Loads from a shot file the data we use in the DYE plugin. Returns a flat array which has graph series
 # (with names prefixed by "_graph", if read_series=1), the settings variables that correspond to shot descriptive 
 # metadata (if read_description=1) and the profile variables (if read_profile=1).
@@ -1112,6 +1113,23 @@ proc ::plugins::SDB::load_shot { filename {read_series 1} {read_description 1} {
 			}
 		}
 	}
+
+	# clean godshot enabled shots: find min length over some mandatory series
+	if { [llength [ifexists file_props(espresso_elapsed)]] > 0 \
+		&& [llength [ifexists file_props(espresso_pressure)]] > 0 \
+		&& [llength [ifexists file_props(espresso_flow)]] > 0 } {
+        set field_len_min [::min \
+                            [llength $file_props(espresso_elapsed)] \
+                            [llength $file_props(espresso_pressure)] \
+                            [llength $file_props(espresso_flow)]]
+        # trim time series (x-axis) to match other series in length (elapsed series is sometimes longer)
+        if { [string is true $read_series] } {
+            set shot_data(espresso_elapsed) [lrange $file_props(espresso_elapsed) 0 $field_len_min-1]
+        }
+        if { [string is true $read_description] } {
+            set shot_data(extraction_time) [round_to_one_digits [expr ([lindex $file_props(espresso_elapsed) $field_len_min-1]+0.05)]]
+        }
+    }
 	
 	foreach field_name {app_version local_time} {
 		if { [info exists file_props($field_name)] } {
@@ -1147,7 +1165,9 @@ proc ::plugins::SDB::load_shot { filename {read_series 1} {read_description 1} {
 	
 	if { [string is true $read_description] } {	
 		foreach field_name [concat grinder_setting [metadata fields -domain shot -category description -data_type {number boolean}]] {
-			if { [info exists file_sets($field_name)]  && $file_sets($field_name) > 0 } {
+			# grinder_setting is a string
+			# other fields are numbers and must be non-zero & positive
+			if { [info exists file_sets($field_name)] && ($field_name == "grinder_setting" || $file_sets($field_name) > 0) } {
 				set shot_data($field_name) $file_sets($field_name)
 			} else {
 				# We use {} instead of 0 to get DB NULLs and empty values in entry textboxes
@@ -1680,13 +1700,13 @@ proc ::plugins::SDB::upgrade { {update_screen 0} } {
 				('74112 (Heirloom)','Arabica','Ethiopia'),
 				('Acaia','Arabica','Brazil'),
 				('Anacafe 14','Hybrid',''),
-				('Arusha','Arabica','Mount Meru in Tanzania, and Papua New Guinea'),
+				('Arusha','Arabica','Mount Meru in Tanzania, and Papua New Guinea'),
 				('Autoctonous varieties','Arabica',''),
 				('Batian','Hybrid',''),
 				('Benguet','Arabica','Philippines'),
 				('Bergendal','Arabica','Indonesia'),
 				('Bernardina','Hybrid','El Salvador'),
-				('Blue Mountain','Arabica','Blue Mountains region of Jamaica. Also grown in Kenya, Hawaii, Haiti, Papua New Guinea (where it is known as PNG Gold) and Cameroon (where it is known as Boyo).'),
+				('Blue Mountain','Arabica','Blue Mountains region of Jamaica. Also grown in Kenya, Hawaii, Haiti, Papua New Guinea (where it is known as PNG Gold) and Cameroon (where it is known as Boyo).'),
 				('Bonifieur','Arabica','Guadeloupe'),
 				('Bourbon','Arabica','Réunion, Rwanda, Latin America.'),
 				('Bourbon Mayaguez 71','Arabica','Rwanda and Burundi'),
@@ -1764,9 +1784,9 @@ proc ::plugins::SDB::upgrade { {update_screen 0} } {
 				('SL28','Arabica','Kenya, Malawi, Uganda, Zimbabwe'),
 				('SL34','Arabica','Kenya'),
 				('Starmaya','Hybrid',''),
-				('Sulawesi Toraja Kalossi','Arabica','Indonesia'),
+				('Sulawesi Toraja Kalossi','Arabica','Indonesia'),
 				('Sumatra Lintong','Arabica','Indonesia'),
-				('Sumatra Mandheling','Arabica','Indonesia'),
+				('Sumatra Mandheling','Arabica','Indonesia'),
 				('Timor, Arabusta','Hybrid','Indonesia'),
 				('T5175','Hybrid',''),
 				('T5296','Hybrid',''),
