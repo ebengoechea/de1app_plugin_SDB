@@ -12,7 +12,7 @@ namespace eval ::plugins::SDB {
 
 	variable db {}
 	variable updating_db 0
-	variable db_version 4
+	variable db_version 5
 	variable sqlite_version {}
 	
 	variable min_de1app_version {1.37}
@@ -73,8 +73,11 @@ namespace eval ::plugins::SDB {
 		beverage_type {"Beverage type" "Beverage types" "Bev type" "Bev types" \
 			"" shot "" "" "" beverage_type category 0 0 0}
 		repository_links {"Repository link" "Repository links" "Repo link" "Repo links" \
-			"" "" "" "" "" repository_links "array" 0 0 0}
-	}	
+			"" "" "" "" "" repository_links "array" 0 0 0} \
+		workflow {"Workflow" "Workflows" "Workflow" "Workflows" \
+			"" shot "" "" "" my_name skin(workflow) 0 50 0}
+		
+	}
 
 	namespace export string2sql strings2sql get_shot_file_path load_shot modify_shot_file \
 		get_db db_close persist_shot update_shot_description \
@@ -1605,8 +1608,20 @@ proc ::plugins::SDB::upgrade { {update_screen 0} } {
 		}
 	}
 
-	# v5 adds the many new description fields.
+	# v5 adds the DSx2 workflow field
 	if { $disk_db_version <= 4 } {
+		set progress_msg [translate "Upgrading DB to v6"]
+		if { $update_screen == 1 } {
+			update
+		} else {
+			borg toast $progress_msg 1
+		}
+		
+		catch { db eval { ALTER TABLE shot ADD COLUMN workflow TEXT COLLATE NOCASE} }
+	}	
+
+	# v?? adds the many new description fields (NOT ADDED YET)
+	if { $disk_db_version <= 20 } {
 		set progress_msg [translate "Upgrading DB to v5"]
 		if { $update_screen == 1 } {
 			update
@@ -1827,6 +1842,7 @@ proc ::plugins::SDB::upgrade { {update_screen 0} } {
 				('Decaf - Indirect Solvent (Methylene Chloride)', 230);
 			}}
 	}
+
 	
 	db eval "PRAGMA user_version=$db_version"
 	set progress_msg [translate "DB Upgraded"]
@@ -2440,6 +2456,42 @@ proc ::plugins::SDB::shots { {return_columns clock} {exc_removed 1} {filter {}} 
 	}
 	append sql " LIMIT $max_rows COLLATE NOCASE"
 		
+	msg -INFO [namespace current] shots: "SQL: $sql"
+	if { [llength $return_columns] == 1 } {
+		return [db eval "$sql"]
+	} else {
+		array set result {}		
+		set i 0 
+		db eval "$sql" values {
+			if { $i == 0 } {
+				foreach fn $values(*) { set result($fn) {} }
+			}
+			foreach fn $values(*) { 
+				lappend result($fn) $values($fn)
+			}
+			incr i
+		}		
+		return [array get result]
+	}
+}
+
+proc ::plugins::SDB::shots_by { {return_columns clock} {exc_removed 1} {filter {}} {max_rows 500} {order_by "MAX(clock) DESC"} } {
+	set db [get_db]
+	
+	set sql "SELECT MAX(clock) AS last_clock, [join $return_columns ,] "
+	append sql "FROM V_shot "
+	if { $exc_removed == 1 || $filter ne "" } {
+		append sql "WHERE "
+		if { $exc_removed == 1 } { append sql "removed=0 AND " }
+		if { $filter ne "" } { append sql "$filter AND " }
+		set sql [string range $sql 0 end-4]
+	}
+	append sql "GROUP BY [join $return_columns ,]"
+	if { $order_by ne {} } {
+		append sql " ORDER BY $order_by"
+	}
+	append sql " LIMIT $max_rows COLLATE NOCASE"
+
 	msg -INFO [namespace current] shots: "SQL: $sql"
 	if { [llength $return_columns] == 1 } {
 		return [db eval "$sql"]
