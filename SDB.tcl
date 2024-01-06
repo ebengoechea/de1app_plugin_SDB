@@ -73,10 +73,9 @@ namespace eval ::plugins::SDB {
 		beverage_type {"Beverage type" "Beverage types" "Bev type" "Bev types" \
 			"" shot "" "" "" beverage_type category 0 0 0}
 		repository_links {"Repository link" "Repository links" "Repo link" "Repo links" \
-			"" "" "" "" "" repository_links "array" 0 0 0} \
+			"" "" "" "" "" repository_links "array" 0 0 0}
 		workflow {"Workflow" "Workflows" "Workflow" "Workflows" \
-			"" shot "" "" "" my_name skin(workflow) 0 50 0}
-		
+			"" shot "" "" "" DSx2_workflow category 0 50 0}
 	}
 
 	namespace export string2sql strings2sql get_shot_file_path load_shot modify_shot_file \
@@ -1067,7 +1066,7 @@ proc ::plugins::SDB::get_shot_file_path { filename {relative_path 0} } {
 # (with names prefixed by "_graph", if read_series=1), the settings variables that correspond to shot descriptive 
 # metadata (if read_description=1) and the profile variables (if read_profile=1).
 # Input can be a filename, with or without .shot extension, a clock value, or a full path to a shot file.
-proc ::plugins::SDB::load_shot { filename {read_series 1} {read_description 1} {read_profile 0} } {
+proc ::plugins::SDB::load_shot { filename {read_series 1} {read_description 1} {read_profile 0} {read_workflow_settings 0} } {
 	set path [get_shot_file_path $filename]
 	if { $path eq "" } return
 	
@@ -1146,7 +1145,7 @@ proc ::plugins::SDB::load_shot { filename {read_series 1} {read_description 1} {
 	
 	if { [string is true $read_description] } {
 		set text_fields [metadata fields -domain shot -category description -data_type {category text long_text date complex}]
-		lappend text_fields profile_title skin beverage_type
+		lappend text_fields profile_title skin beverage_type DSx2_workflow
 		# We need to treat grinder_setting differently because it's declared as a category, but treated as number by some skins
 		# (with empty=zero)
 		
@@ -1190,7 +1189,7 @@ proc ::plugins::SDB::load_shot { filename {read_series 1} {read_description 1} {
 			}
 		}
 	
-		foreach field_name {firmware_version_number enabled_plugins skin_version} {
+		foreach field_name {firmware_version_number enabled_plugins skin_version DSx2_workflow} {
 			if { [info exists file_sets($field_name)] } {
 				set shot_data($field_name) $file_sets($field_name)
 			} else {
@@ -1206,6 +1205,15 @@ proc ::plugins::SDB::load_shot { filename {read_series 1} {read_description 1} {
 		}
 	}
 
+	if { [string is true $read_workflow_settings] } {
+		foreach field_name {steam_disabled steam_timeout hotwater_flow water_temperature water_volume} {
+			if { [info exists file_sets($field_name)] } {
+				set shot_data($field_name) $file_sets($field_name)
+			} else {
+				set shot_data($field_name) 0
+			}
+		}
+	}
 	
 	return [array get shot_data]
 }
@@ -1609,7 +1617,7 @@ proc ::plugins::SDB::upgrade { {update_screen 0} } {
 	}
 
 	# v5 adds the DSx2 workflow field
-	if { $disk_db_version <= 4 } {
+	if { $disk_db_version <= 5 } {
 		set progress_msg [translate "Upgrading DB to v6"]
 		if { $update_screen == 1 } {
 			update
@@ -1618,10 +1626,52 @@ proc ::plugins::SDB::upgrade { {update_screen 0} } {
 		}
 		
 		catch { db eval { ALTER TABLE shot ADD COLUMN workflow TEXT COLLATE NOCASE} }
+		
+		db eval {
+		DROP VIEW IF EXISTS V_shot;
+			
+		CREATE VIEW IF NOT EXISTS V_shot AS
+		SELECT s.clock, s.filename, 
+			CASE WHEN s.archived=0 THEN '/history/'||s.filename||'.shot' 
+				ELSE '/history_archive/'||s.filename||'.shot' END as rel_path,
+			s.file_modification_date, s.archived, s.removed,
+			strftime('%d/%m/%Y %H:%M',s.clock,'unixepoch','localtime')||' '||COALESCE(s.profile_title,'')||
+			CASE WHEN LENGTH(COALESCE(s.grinder_dose_weight,''))>0 OR LENGTH(COALESCE(s.drink_weight,''))>0 THEN 
+				' - '|| CASE WHEN s.grinder_dose_weight IS NULL OR s.grinder_dose_weight='' THEN '0' ELSE s.grinder_dose_weight END ||'g : '||
+				CASE WHEN s.drink_weight IS NULL OR s.drink_weight='' THEN '0' ELSE s.drink_weight END ||'g'||
+				CASE WHEN LENGTH(COALESCE(s.grinder_dose_weight,''))>0 AND LENGTH(COALESCE(s.drink_weight,''))>0 
+						AND s.grinder_dose_weight > 0 AND s.drink_weight > 0 THEN
+					' (1:' || ROUND(s.drink_weight / s.grinder_dose_weight, 1) || ')'
+				ELSE '' END 
+			ELSE '' END ||
+			CASE WHEN LENGTH(COALESCE(s.bean_brand,''))>0 OR LENGTH(COALESCE(s.bean_type,''))>0 OR LENGTH(COALESCE(s.roast_date,''))>0 THEN
+				' - '|| TRIM(COALESCE(s.bean_brand||' ','')||COALESCE(s.bean_type||' ','')||COALESCE(s.roast_date,''))
+			ELSE '' END ||
+			CASE WHEN LENGTH(COALESCE(s.grinder_model,''))>0 OR LENGTH(COALESCE(s.grinder_setting,''))>0 THEN
+				' - '|| COALESCE(s.grinder_model, '') || 
+					CASE WHEN LENGTH(COALESCE(s.grinder_setting,''))>0 THEN ' @ '||s.grinder_setting ELSE '' END
+			ELSE '' END ||
+			CASE WHEN LENGTH(COALESCE(s.drink_ey,''))>0 OR LENGTH(COALESCE(s.drink_tds,''))>0 OR LENGTH(COALESCE(s.espresso_enjoyment,''))>0 THEN
+				' - '||
+				CASE WHEN LENGTH(COALESCE(s.drink_tds,''))>0 THEN 'TDS '||s.drink_tds||'% ' ELSE '' END ||
+				CASE WHEN LENGTH(COALESCE(s.drink_ey,''))>0 THEN 'EY '||s.drink_ey||'% ' ELSE '' END ||
+				CASE WHEN LENGTH(COALESCE(s.espresso_enjoyment,''))>0 THEN 'Enjoy '||s.espresso_enjoyment||' ' ELSE '' END 
+			ELSE '' END ||
+			CASE WHEN removed=1 THEN ' [REMOVED]' ELSE '' END AS shot_desc,
+			s.profile_title, s.grinder_dose_weight, s.drink_weight, s.extraction_time,
+			s.bean_brand, s.bean_type, s.bean_notes, s.roast_date, s.roast_level,
+			CASE WHEN LENGTH(COALESCE(s.bean_brand,''))>0 OR LENGTH(COALESCE(s.bean_type,''))>0 OR LENGTH(COALESCE(s.roast_date,''))>0 THEN
+				TRIM(COALESCE(s.bean_brand||' ','')||COALESCE(s.bean_type||' ','')||COALESCE(s.roast_date,''))
+				ELSE '' END AS bean_desc,	
+			s.grinder_model, s.grinder_setting, 
+			s.drink_tds, s.drink_ey, s.espresso_enjoyment, s.espresso_notes, s.scentone,
+			s.my_name, s.drinker_name, s.beverage_type, s.skin, s.visualizer_link, s.workflow
+		FROM shot s;
+		}
 	}	
 
-	# v?? adds the many new description fields (NOT ADDED YET)
-	if { $disk_db_version <= 20 } {
+	# v? adds the many new description fields (NOT ADDED YET)
+	if { $disk_db_version >= 1000 } {
 		set progress_msg [translate "Upgrading DB to v5"]
 		if { $update_screen == 1 } {
 			update
@@ -1843,7 +1893,6 @@ proc ::plugins::SDB::upgrade { {update_screen 0} } {
 			}}
 	}
 
-	
 	db eval "PRAGMA user_version=$db_version"
 	set progress_msg [translate "DB Upgraded"]
 	if { $update_screen == 1 } update		
@@ -2046,7 +2095,7 @@ proc ::plugins::SDB::populate { {persist_desc {}} { persist_series {}} {update_s
 		}
 		
 		incr cnt
-		if {[expr {$cnt % $msg_every}] == 0 } {
+		if { $msg_every > 0 && [expr {$cnt % $msg_every}] == 0 } {
 			set perc [expr {int($cnt*100.0/$n)}]
 			set progress_msg "$screen_msg: $cnt/$n ($perc\%)"
 			if { $update_screen == 1 } { 
@@ -2188,6 +2237,13 @@ proc ::plugins::SDB::persist_shot { arr_shot {persist_desc {}} {persist_series {
 	if { $persist_series eq "" } { set persist_series $settings(db_persist_series) }
 
 	if { $persist_desc == 1 } {
+		if { [string range $::settings(skin) 0 3] eq "DSx2" && [info exists shot(DSx2_workflow)] && \
+				[string length $shot(DSx2_workflow)] > 0 } {
+			set workflow "$shot(DSx2_workflow)"
+		} else {
+			set workflow "NULL"
+		}
+		
 		if {[db exists {SELECT 1 FROM shot WHERE clock=$shot(clock)}]} {
 			# We only update the description fields, not the others which should not change.
 			db eval { UPDATE shot SET archived=COALESCE($shot(comes_from_archive),0),
@@ -2199,7 +2255,7 @@ proc ::plugins::SDB::persist_shot { arr_shot {persist_desc {}} {persist_series {
 				espresso_enjoyment=$shot(espresso_enjoyment),espresso_notes=$shot(espresso_notes),
 				my_name=$shot(my_name),drinker_name=$shot(drinker_name),scentone=$shot(scentone),
 				file_modification_date=$shot(file_modification_date),skin=$shot(skin),
-				beverage_type=$shot(beverage_type)
+				beverage_type=$shot(beverage_type),workflow=$workflow 
 				WHERE clock=$shot(clock) }
 			
 #			db eval { UPDATE shot SET archived=COALESCE($shot(comes_from_archive),0),
@@ -2214,22 +2270,22 @@ proc ::plugins::SDB::persist_shot { arr_shot {persist_desc {}} {persist_series {
 #				beverage_type=$shot(beverage_type),bean_country=$shot(bean_country),bean_region=$shot(bean_region),
 #				bean_altitude=$shot(bean_altitude),bean_producer=$shot(bean_producer),bean_processing=$shot(bean_processing)
 #				WHERE clock=$shot(clock) }
-			
-			if { [info exists shot(other_equipment)] } {
-				update_shot_equipment $shot(clock) $shot(other_equipment) 0
-			}						
+#			
+#			if { [info exists shot(other_equipment)] } {
+#				update_shot_equipment $shot(clock) $shot(other_equipment) 0
+#			}
 		} else {
 			db eval { INSERT INTO shot (clock,filename,archived,
 				profile_title,grinder_dose_weight,drink_weight,extraction_time,
 				bean_brand,bean_type,bean_notes,roast_date,roast_level,grinder_model,grinder_setting,
 				drink_tds,drink_ey,espresso_enjoyment,espresso_notes,my_name,drinker_name,scentone,
-				file_modification_date,skin,beverage_type)
+				file_modification_date,skin,beverage_type,workflow)
 				VALUES ( $shot(clock),$shot(filename),COALESCE($shot(comes_from_archive),0),
 				$shot(profile_title),$shot(grinder_dose_weight),$shot(drink_weight),
 				$shot(extraction_time),$shot(bean_brand),$shot(bean_type),$shot(bean_notes),$shot(roast_date),
 				$shot(roast_level),$shot(grinder_model),$shot(grinder_setting),$shot(drink_tds),$shot(drink_ey),
 				$shot(espresso_enjoyment),$shot(espresso_notes),$shot(my_name),$shot(drinker_name),$shot(scentone),
-				$shot(file_modification_date),$shot(skin),$shot(beverage_type)) 
+				$shot(file_modification_date),$shot(skin),$shot(beverage_type),$workflow) 
 			}
 			
 #			db eval { INSERT INTO shot (clock,filename,archived,
@@ -2246,10 +2302,10 @@ proc ::plugins::SDB::persist_shot { arr_shot {persist_desc {}} {persist_series {
 #				$shot(file_modification_date),$shot(skin),$shot(beverage_type),$shot(bean_country),$shot(bean_region),
 #				$shot(bean_altitude),$shot(bean_producer),$shot(bean_processing)) 
 #			}
-			
-			if { [info exists shot(other_equipment)] && $shot(other_equipment) ne "" } {
-				update_shot_equipment $shot(clock) $shot(other_equipment) 0
-			}									
+#
+#			if { [info exists shot(other_equipment)] && $shot(other_equipment) ne "" } {
+#				update_shot_equipment $shot(clock) $shot(other_equipment) 0
+#			}
 		}
 	} elseif { $persist_series == 1 } {
 		# Prevents breaking a FK constraint (though FK are not supported in this compilation of undrowish) if the shot 
@@ -2338,7 +2394,7 @@ proc ::plugins::SDB::update_shot_description { clock arr_new_settings } {
 	foreach field_name [array names new_settings] {
 		# TODO: Replace following test by a parametrized done using the data dictionary?
 		if { $field_name eq "other_equipment" } {
-			update_shot_equipment $clock $new_settings(other_equipment)
+			#update_shot_equipment $clock $new_settings(other_equipment)
 		} else {		
 			if { [lsearch $columns $field_name] > -1 } {
 				lappend field_updates "$field_name=\$new_settings($field_name)"
@@ -2428,7 +2484,7 @@ proc ::plugins::SDB::save_espresso_to_history_hook { args } {
 		#set fn "[homedir]/history/[clock format $::settings(espresso_clock) -format $::DYE::filename_clock_format].shot"
 		array set shot [load_shot $::settings(espresso_clock)]
 		persist_shot shot $settings(db_persist_desc) $settings(db_persist_series) 1
-	}
+	}	
 }
 
 # Returns shots data.  
@@ -2478,7 +2534,14 @@ proc ::plugins::SDB::shots { {return_columns clock} {exc_removed 1} {filter {}} 
 proc ::plugins::SDB::shots_by { {return_columns clock} {exc_removed 1} {filter {}} {max_rows 500} {order_by "MAX(clock) DESC"} } {
 	set db [get_db]
 	
-	set sql "SELECT MAX(clock) AS last_clock, [join $return_columns ,] "
+	set coalesced_cols {}
+	set group_coalesced_cols {}
+	foreach col $return_columns {
+		lappend coalesced_cols "coalesce($col,'') AS $col"
+		lappend group_coalesced_cols "coalesce($col,'')"
+	}
+	
+	set sql "SELECT MAX(clock) AS last_clock, [join $coalesced_cols ,] "
 	append sql "FROM V_shot "
 	if { $exc_removed == 1 || $filter ne "" } {
 		append sql "WHERE "
@@ -2486,16 +2549,16 @@ proc ::plugins::SDB::shots_by { {return_columns clock} {exc_removed 1} {filter {
 		if { $filter ne "" } { append sql "$filter AND " }
 		set sql [string range $sql 0 end-4]
 	}
-	append sql "GROUP BY [join $return_columns ,]"
+	append sql "GROUP BY [join $group_coalesced_cols ,]"
 	if { $order_by ne {} } {
 		append sql " ORDER BY $order_by"
 	}
 	append sql " LIMIT $max_rows COLLATE NOCASE"
 
 	msg -INFO [namespace current] shots: "SQL: $sql"
-	if { [llength $return_columns] == 1 } {
-		return [db eval "$sql"]
-	} else {
+#	if { [llength $return_columns] == 1 } {
+#		return [db eval "$sql"]
+#	} else {
 		array set result {}		
 		set i 0 
 		db eval "$sql" values {
@@ -2508,7 +2571,7 @@ proc ::plugins::SDB::shots_by { {return_columns clock} {exc_removed 1} {filter {
 			incr i
 		}		
 		return [array get result]
-	}
+#	}
 }
 
 proc ::plugins::SDB::previous_shot { wrt_clock {return_columns clock} {exc_removed 1} {filter ""} } {
@@ -3242,7 +3305,7 @@ proc ::dui::pages::SDB_settings::db_persist_series_change {} {
 				borg spinner on	 
 				dui item disable $page "db_persist_series* rebuild_db* resync_db*"
 				if {[catch { ::plugins::SDB::populate 0 1 1 1 } err] != 0} {
-					SDB::msg "ERROR populating DB: $err"
+					::plugins::SDB::msg "ERROR populating DB: $err"
 					set ::plugins::SDB::progress_msg [translate "Failed to sync DB:\r$err"]
 					update	
 				}
@@ -3292,7 +3355,7 @@ proc ::dui::pages::SDB_settings::rebuild_db {} {
 	dui item disable SDB_settings "db_persist_series* rebuild_db* resync_db*"
 	
 	if {[catch { ::plugins::SDB::create 1 1 1 } err] != 0} {
-		msg "ERROR recreating DB: $err"
+		::plugins::SDB::msg "ERROR recreating DB: $err"
 		set ::plugins::SDB::progress_msg [translate "Failed to recreate DB:\r$err"]
 		update
 		after 3000 { set ::plugins::SDB::progress_msg "" }
@@ -3303,7 +3366,7 @@ proc ::dui::pages::SDB_settings::rebuild_db {} {
 		return		
 	}
 	if {[catch { ::plugins::SDB::populate "" "" 1 } err] != 0} {
-		msg "ERROR populating DB: $err"
+		::plugins::SDB::msg "ERROR populating DB: $err"
 		set ::plugins::SDB::progress_msg [translate "Failed to sync DB:\r$err"]
 		update
 		after 3000 { set ::plugins::SDB::progress_msg "" }
@@ -3335,7 +3398,7 @@ proc ::dui::pages::SDB_settings::resync_db {} {
 	dui item disable SDB_settings "db_persist_series* rebuild_db* resync_db*"
 	
 	if {[catch { ::plugins::SDB::populate "" "" 1 } err] != 0} {
-		SDB::msg "ERROR populating DB: $err"
+		::plugins::SDB::msg "ERROR populating DB: $err"
 		set ::plugins::SDB::progress_msg [translate "Failed to sync DB:\r$err"]
 		update		
 	}
