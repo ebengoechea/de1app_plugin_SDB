@@ -2388,6 +2388,7 @@ proc ::plugins::SDB::update_shot_description { clock arr_new_settings } {
 	if { [string trim $clock] eq "" } return
 	if { [array size new_settings] == 0 } return
 	
+	set columns {}
 	db eval "SELECT * FROM shot LIMIT 1" x {set columns $x(*)}
 	
 	set field_updates {}

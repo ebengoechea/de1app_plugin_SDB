@@ -2,6 +2,19 @@
 
 Format based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
+## [1.21] - 2024-01-?
+
+### New
+- DSx2 workflow variable is now stored in the database, so it can be retrieved from past shots. Only filled 
+if the shot is done while using the DSx2 skin.
+- New proc ``shots_by``, needed in the forthcoming DYE favorites.
+
+### Changed
+ - Initialize ``$columns`` in proc ``update_shot_description`` as otherwise it could trigger
+ a runtime error under some scenarios.
+
+### Changed
+- Change the default for `sync_on_startup` to 0 (disabled) for new users, in preparation for DE1 app v1.39, as it's producing long startups for some users.
 ## [1.20] - 2022-03-01
 
 ### Changed
