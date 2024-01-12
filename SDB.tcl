@@ -5,7 +5,7 @@
 namespace eval ::plugins::SDB {
 	variable author "Enrique Bengoechea"
 	variable contact "enri.bengoechea@gmail.com"
-	variable version 1.20
+	variable version 1.21
 	variable github_repo ebengoechea/de1app_plugin_SDB
 	variable name [translate "Shot DataBase"]
 	variable description [translate "Keeps your shot history in a SQLite database, and provides functions to manage shot history files."]
@@ -1618,7 +1618,7 @@ proc ::plugins::SDB::upgrade { {update_screen 0} } {
 
 	# v5 adds the DSx2 workflow field
 	if { $disk_db_version <= 5 } {
-		set progress_msg [translate "Upgrading DB to v6"]
+		set progress_msg [translate "Upgrading DB to v5"]
 		if { $update_screen == 1 } {
 			update
 		} else {
@@ -1626,6 +1626,7 @@ proc ::plugins::SDB::upgrade { {update_screen 0} } {
 		}
 		
 		catch { db eval { ALTER TABLE shot ADD COLUMN workflow TEXT COLLATE NOCASE} }
+		catch { db eval { ALTER TABLE shot ADD COLUMN target_drink_weight REAL} }
 		
 		db eval {
 		DROP VIEW IF EXISTS V_shot;
@@ -1665,14 +1666,14 @@ proc ::plugins::SDB::upgrade { {update_screen 0} } {
 				ELSE '' END AS bean_desc,	
 			s.grinder_model, s.grinder_setting, 
 			s.drink_tds, s.drink_ey, s.espresso_enjoyment, s.espresso_notes, s.scentone,
-			s.my_name, s.drinker_name, s.beverage_type, s.skin, s.visualizer_link, s.workflow
+			s.my_name, s.drinker_name, s.beverage_type, s.skin, s.visualizer_link, s.workflow, s.target_drink_weight
 		FROM shot s;
 		}
 	}	
 
 	# v? adds the many new description fields (NOT ADDED YET)
 	if { $disk_db_version >= 1000 } {
-		set progress_msg [translate "Upgrading DB to v5"]
+		set progress_msg [translate "Upgrading DB to v?"]
 		if { $update_screen == 1 } {
 			update
 		} else {
@@ -2514,17 +2515,19 @@ proc ::plugins::SDB::shots { {return_columns clock} {exc_removed 1} {filter {}} 
 	append sql " LIMIT $max_rows COLLATE NOCASE"
 		
 	msg -INFO [namespace current] shots: "SQL: $sql"
-	if { [llength $return_columns] == 1 } {
+	if { [llength $return_columns] == 1 && $return_columns ne "*" } {
 		return [db eval "$sql"]
 	} else {
 		array set result {}		
 		set i 0 
 		db eval "$sql" values {
 			if { $i == 0 } {
-				foreach fn $values(*) { set result($fn) {} }
+				foreach fn $values(*) { 
+					set result($fn) {} 
+				}
 			}
 			foreach fn $values(*) { 
-				lappend result($fn) $values($fn)
+				set result($fn) $values($fn)
 			}
 			incr i
 		}		
@@ -2557,22 +2560,18 @@ proc ::plugins::SDB::shots_by { {return_columns clock} {exc_removed 1} {filter {
 	append sql " LIMIT $max_rows COLLATE NOCASE"
 
 	msg -INFO [namespace current] shots: "SQL: $sql"
-#	if { [llength $return_columns] == 1 } {
-#		return [db eval "$sql"]
-#	} else {
-		array set result {}		
-		set i 0 
-		db eval "$sql" values {
-			if { $i == 0 } {
-				foreach fn $values(*) { set result($fn) {} }
-			}
-			foreach fn $values(*) { 
-				lappend result($fn) $values($fn)
-			}
-			incr i
-		}		
-		return [array get result]
-#	}
+	array set result {}		
+	set i 0 
+	db eval "$sql" values {
+		if { $i == 0 } {
+			foreach fn $values(*) { set result($fn) {} }
+		}
+		foreach fn $values(*) { 
+			lappend result($fn) $values($fn)
+		}
+		incr i
+	}		
+	return [array get result]
 }
 
 proc ::plugins::SDB::previous_shot { wrt_clock {return_columns clock} {exc_removed 1} {filter ""} } {
