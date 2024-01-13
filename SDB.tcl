@@ -2526,8 +2526,8 @@ proc ::plugins::SDB::shots { {return_columns clock} {exc_removed 1} {filter {}} 
 					set result($fn) {} 
 				}
 			}
-			foreach fn $values(*) { 
-				set result($fn) $values($fn)
+			foreach fn $values(*) {
+				lappend result($fn) $values($fn)
 			}
 			incr i
 		}		
