@@ -2,6 +2,12 @@
 
 Format based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
+## [1.22] - 2024-01-13
+
+### Changed
+ - Reverse bug introduced in last version in ``proc shots`` that was no longer correctly
+ creating each array item as a list.
+
 ## [1.21] - 2024-01-12
 
 ### New
