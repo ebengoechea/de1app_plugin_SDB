@@ -1107,7 +1107,7 @@ proc ::plugins::SDB::load_shot { filename {read_series 1} {read_description 1} {
 		# settings and graph (i.e. espresso_pressure is both a chart series name and a profile variable) 
 		foreach field_name {espresso_elapsed espresso_pressure espresso_weight espresso_flow espresso_flow_weight \
 				espresso_temperature_basket espresso_temperature_mix espresso_flow_weight_raw espresso_water_dispensed \
-				espresso_temperature_goal espresso_pressure_goal espresso_flow_goal espresso_state_change } {
+				espresso_temperature_goal espresso_pressure_goal espresso_flow_goal espresso_state_change espresso_resistance} {
 			if { [info exists file_props($field_name)] } {
 				set shot_data(graph_$field_name) $file_props($field_name)
 			} else {

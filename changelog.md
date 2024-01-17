@@ -2,6 +2,12 @@
 
 Format based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
+## [1.23] - 2024-01-17
+
+### Changed
+ - Add ``espresso_resistance`` to the vars read by ``::plugins::SDB::load_shot``.
+ Needed for DYE v2.33.
+
 ## [1.22] - 2024-01-13
 
 ### Changed
