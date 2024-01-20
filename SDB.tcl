@@ -1142,6 +1142,16 @@ proc ::plugins::SDB::load_shot { filename {read_series 1} {read_description 1} {
 	}		
 	
 	array set file_sets $file_props(settings)
+
+	# This was at the end before, but changed when (temporarilly) vars such as 
+	# grinder_dose_weights were added to profiles.
+	if { [string is true $read_profile] } {
+		array set profile [::profile::read_legacy array_name file_sets 1]
+		
+		foreach field_name [array names profile] {
+			set shot_data($field_name) $profile($field_name)
+		}
+	}
 	
 	if { [string is true $read_description] } {
 		set text_fields [metadata fields -domain shot -category description -data_type {category text long_text date complex}]
@@ -1188,20 +1198,27 @@ proc ::plugins::SDB::load_shot { filename {read_series 1} {read_description 1} {
 				set shot_data(grinder_dose_weight) $file_sets(dsv2_bean_weight)
 			}
 		}
-	
+
+		# Target drink weight
+		# Beware than under DSx the SAW was kept on ::DSx_settings(saw), which is NOT stored
+		# on settings, so not accesible.
+		if { $file_sets(settings_profile_type) eq "settings_2c" && 
+				$file_sets(final_desired_shot_weight_advanced) > 0 } {
+			set shot_data(target_drink_weight) [round_to_one_digits $file_sets(final_desired_shot_weight_advanced)]
+			msg "SDB::load_shot target_drink_weight=$shot_data(target_drink_weight) FROM final_desired_shot_weight_advanced"
+		} elseif { [ifexists file_sets(final_desired_shot_weight) 0] > 0 } { 
+			set shot_data(target_drink_weight) [round_to_one_digits $file_sets(final_desired_shot_weight)]
+			msg "SDB::save_espresso_to_history_hook target_drink_weight=$shot_data(target_drink_weight) FROM final_desired_shot_weight"
+		} else {
+			set shot_data(target_drink_weight) 0.0
+		}
+			
 		foreach field_name {firmware_version_number enabled_plugins skin_version DSx2_workflow} {
 			if { [info exists file_sets($field_name)] } {
 				set shot_data($field_name) $file_sets($field_name)
 			} else {
 				set shot_data($field_name) ""
 			}
-		}
-	}
-	
-	if { [string is true $read_profile] } {
-		array set profile [::profile::read_legacy array_name file_sets 1]
-		foreach field_name [array names profile] {
-			set shot_data($field_name) $profile($field_name)
 		}
 	}
 
@@ -2256,7 +2273,8 @@ proc ::plugins::SDB::persist_shot { arr_shot {persist_desc {}} {persist_series {
 				espresso_enjoyment=$shot(espresso_enjoyment),espresso_notes=$shot(espresso_notes),
 				my_name=$shot(my_name),drinker_name=$shot(drinker_name),scentone=$shot(scentone),
 				file_modification_date=$shot(file_modification_date),skin=$shot(skin),
-				beverage_type=$shot(beverage_type),workflow=$workflow 
+				beverage_type=$shot(beverage_type),workflow=$workflow,
+				target_drink_weight=$shot(target_drink_weight) 
 				WHERE clock=$shot(clock) }
 			
 #			db eval { UPDATE shot SET archived=COALESCE($shot(comes_from_archive),0),
@@ -2280,13 +2298,13 @@ proc ::plugins::SDB::persist_shot { arr_shot {persist_desc {}} {persist_series {
 				profile_title,grinder_dose_weight,drink_weight,extraction_time,
 				bean_brand,bean_type,bean_notes,roast_date,roast_level,grinder_model,grinder_setting,
 				drink_tds,drink_ey,espresso_enjoyment,espresso_notes,my_name,drinker_name,scentone,
-				file_modification_date,skin,beverage_type,workflow)
+				file_modification_date,skin,beverage_type,workflow,target_drink_weight)
 				VALUES ( $shot(clock),$shot(filename),COALESCE($shot(comes_from_archive),0),
 				$shot(profile_title),$shot(grinder_dose_weight),$shot(drink_weight),
 				$shot(extraction_time),$shot(bean_brand),$shot(bean_type),$shot(bean_notes),$shot(roast_date),
 				$shot(roast_level),$shot(grinder_model),$shot(grinder_setting),$shot(drink_tds),$shot(drink_ey),
 				$shot(espresso_enjoyment),$shot(espresso_notes),$shot(my_name),$shot(drinker_name),$shot(scentone),
-				$shot(file_modification_date),$shot(skin),$shot(beverage_type),$workflow) 
+				$shot(file_modification_date),$shot(skin),$shot(beverage_type),$workflow,$shot(target_drink_weight) ) 
 			}
 			
 #			db eval { INSERT INTO shot (clock,filename,archived,
@@ -2433,44 +2451,72 @@ proc ::plugins::SDB::save_espresso_to_history_hook { args } {
 		set ::settings(repository_links) $repo_link
 		set new_settings(repository_links) $repo_link
 	}
+
+	# Target drink weight (SAW), new field included 20/Jan/2024
+	set skin $::settings(skin)
+	set target_drink_weight 0
+	if { $skin eq "DSx" && [info exists ::DSx_settings(saw)] && $::DSx_settings(saw) > 0 } {
+		set target_drink_weight [round_to_one_digits $::DSx_settings(saw)]
+		msg "SDB::save_espresso_to_history_hook target_drink_weight=$target_drink_weight FROM DSx SAW"
+	} elseif { $skin ne "MimojaCafe" && [info exists ::plugins::DYE::settings(next_drink_weight)] && 
+				$::plugins::DYE::settings(next_drink_weight) ne {} } {
+		set target_drink_weight $::plugins::DYE::settings(next_drink_weight)
+		msg "SDB::save_espresso_to_history_hook target_drink_weight=$target_drink_weight FROM DYE next_drink_weight"
+	} elseif { $::settings(settings_profile_type) eq "settings_2c" && 
+			$::settings(final_desired_shot_weight_advanced) > 0 } {
+		set target_drink_weight [round_to_one_digits $::settings(final_desired_shot_weight_advanced)]
+		msg "SDB::save_espresso_to_history_hook target_drink_weight=$target_drink_weight FROM final_desired_shot_weight_advanced"
+	} elseif { [ifexists ::settings(final_desired_shot_weight) 0] > 0 } { 
+		set target_drink_weight [round_to_one_digits $::settings(final_desired_shot_weight)]
+		msg "SDB::save_espresso_to_history_hook target_drink_weight=$target_drink_weight FROM final_desired_shot_weight"
+	} 
 	
 	# If no bluetooth scale, modify last shot's drink_weight to the target defined in the skin or in DYE
-	if { $::settings(drink_weight) == 0 } {
-		set skin $::settings(skin)
-		set drink_weight_modified 0
-		
-		if { $skin eq "DSx" && [info exists ::DSx_settings(saw)] && $::DSx_settings(saw) > 0 } {
-			set ::settings(drink_weight) [round_to_one_digits $::DSx_settings(saw)]
-			set drink_weight_modified 1
-		} elseif { $skin eq "MimojaCafe" } {
-			if { $::settings(settings_profile_type) eq "settings_2c" } {
-				if { $::settings(final_desired_shot_weight_advanced) > 0 } { 
-					set ::settings(drink_weight) [round_to_one_digits $::settings(final_desired_shot_weight_advanced)]
-					set drink_weight_modified 1
-				} 
-			} else {
-				if { $::settings(final_desired_shot_weight) > 0 } { 
-					set ::settings(drink_weight) [round_to_one_digits $::settings(final_desired_shot_weight)]
-					set drink_weight_modified 1
-				}
-			}
-		} elseif { [info exists ::plugins::DYE::settings(next_drink_weight)] && 
-				$::plugins::DYE::settings(next_drink_weight) ne {} } {
+	msg "SDB::save_espresso_to_history_hook INITIAL ::settings(drink_weight)=$::settings(drink_weight), ::de1(scale_weight)=$::de1(scale_weight), settings(next_drink_weight)=$::plugins::DYE::settings(next_drink_weight)"
+	set old_drink_weight [round_to_one_digits $::settings(drink_weight)]
+	if {$::settings(drink_weight) == 0 } {
+		if { [::device::scale::expecting_present] && $::de1(scale_weight) > 0 } {
+			set ::settings(drink_weight) [round_to_one_digits $::de1(scale_weight)]
+			msg "SDB::save_espresso_to_history_hook using ::settings(scale_weight) for the drink_weight"
+		} elseif { [info exists ::plugins::DYE::settings(next_drink_weight)] &&  
+						$::plugins::DYE::settings(next_drink_weight) ne {} } {
 			set ::settings(drink_weight) $::plugins::DYE::settings(next_drink_weight)
-			set drink_weight_modified 1
-		} elseif { [info exists ::settings(final_desired_shot_weight)] && $::settings(final_desired_shot_weight) > 0 } {
-			set ::settings(drink_weight) [round_to_one_digits $::settings(final_desired_shot_weight)]
-			set drink_weight_modified 1
-		}
-		
-		if { $drink_weight_modified } {
-			set new_settings(drink_weight) $::settings(drink_weight)
-			if { $skin eq "DSx" && [value_or_default ::DSx_settings(live_graph_weight) {}] ne $::settings(drink_weight) } {
-				set ::DSx_settings(live_graph_weight) $::settings(drink_weight)
-				::save_DSx_settings
-			}
+			msg "SDB::save_espresso_to_history_hook using DYE next_drink_weight for the drink_weight"
+		} else {
+			set ::settings(drink_weight) $target_drink_weight
+			msg "SDB::save_espresso_to_history_hook using target_drink_weight for the drink_weight"
 		}
 	}
+	
+#	if {$::settings(drink_weight) == 0 } {
+#		if { $skin eq "DSx" && [info exists ::DSx_settings(saw)] && $::DSx_settings(saw) > 0 } {
+#			set ::settings(drink_weight) [round_to_one_digits $::DSx_settings(saw)]
+#		} elseif { $skin eq "MimojaCafe" } {
+#			if { $::settings(settings_profile_type) eq "settings_2c" } {
+#				if { $::settings(final_desired_shot_weight_advanced) > 0 } { 
+#					set ::settings(drink_weight) [round_to_one_digits $::settings(final_desired_shot_weight_advanced)]
+#				} 
+#			} else {
+#				if { $::settings(final_desired_shot_weight) > 0 } { 
+#					set ::settings(drink_weight) [round_to_one_digits $::settings(final_desired_shot_weight)]
+#				}
+#			}
+#		} elseif { [info exists ::plugins::DYE::settings(next_drink_weight)] && 
+#				$::plugins::DYE::settings(next_drink_weight) ne {} } {
+#			set ::settings(drink_weight) $::plugins::DYE::settings(next_drink_weight)
+#		} elseif { [info exists ::settings(final_desired_shot_weight)] && $::settings(final_desired_shot_weight) > 0 } {
+#			set ::settings(drink_weight) [round_to_one_digits $::settings(final_desired_shot_weight)]
+#		}		
+#	}
+	
+	if { $::settings(drink_weight) != $old_drink_weight } {
+		set new_settings(drink_weight) $::settings(drink_weight)
+		
+		if { $skin eq "DSx" && [value_or_default ::DSx_settings(live_graph_weight) {}] ne $::settings(drink_weight) } {
+			set ::DSx_settings(live_graph_weight) $::settings(drink_weight)
+			::save_DSx_settings
+		}
+	}	
 
 	if { [array size new_settings] > 0 } {
 		modify_shot_file $::settings(espresso_clock) new_settings
@@ -3231,7 +3277,7 @@ proc ::dui::pages::SDB_settings::setup {} {
 	dui add dtext $page $x_label $y -text [translate "Manage database"] -style section_title 
 	
 	dui add dbutton $page $x_label [incr y 100] -tags resync_db -command resync_db -style insight_settings \
-		-symbol sync -label [translate "Resync database"]
+		-symbol arrows-rotate -label [translate "Resync database"]
 	
 	dui add variable $page [expr {$x_label+700}] $y -tags last_sync -textvariable {[translate {Last full sync stats}]:
 [clock format $::plugins::SDB::settings(last_sync_clock) -format $::plugins::SDB::friendly_clock_format]\r 
