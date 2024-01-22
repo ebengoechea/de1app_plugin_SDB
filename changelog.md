@@ -2,6 +2,14 @@
 
 Format based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
+## [1.24] - 2024-01-22
+
+### New
+ - Insert, update and load the new shot field ``target_drink_weight``.
+ 
+### Changed 
+ - Update "sync" symbol name that has changed in Font Awesome 6 (in SDB settings button)
+ 
 ## [1.23] - 2024-01-17
 
 ### Changed

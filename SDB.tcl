@@ -5,7 +5,7 @@
 namespace eval ::plugins::SDB {
 	variable author "Enrique Bengoechea"
 	variable contact "enri.bengoechea@gmail.com"
-	variable version 1.22
+	variable version 1.24
 	variable github_repo ebengoechea/de1app_plugin_SDB
 	variable name [translate "Shot DataBase"]
 	variable description [translate "Keeps your shot history in a SQLite database, and provides functions to manage shot history files."]
@@ -2653,7 +2653,8 @@ proc ::plugins::SDB::next_shot { wrt_clock {return_columns clock} {exc_removed 1
 #	actual values as used in shots (e.g. shot_equipment inner join equipment_type)
 # If args are provided and the field has db_type_column<i>, filters to category values matching the corresponding
 #	types.
-proc ::plugins::SDB::available_categories { field_name {exc_removed_shots 1} {filter {}} {use_lookup_table 1} args } {
+proc ::plugins::SDB::available_categories { field_name {exc_removed_shots 1} {filter {}} \
+		{use_lookup_table 1} {order_by {}} args } {
 	set db [get_db]	
 	
 	lassign [::plugins::SDB::field_lookup $field_name {data_type db_table lookup_table db_type_column1 db_type_column2}] \
@@ -2713,26 +2714,29 @@ proc ::plugins::SDB::available_categories { field_name {exc_removed_shots 1} {fi
 		append sql "GROUP BY [join $grouping_fields ,] "
 	}		
 
-	#append sql "ORDER BY "
-	if { $field_name eq "grinder_setting" } {
-		# TODO Include sorting in data dictionary!
-		append sql "ORDER BY TRIM($field_name)"
-	} elseif { $use_lookup_table == 1 }  {
-#		if { $lookup_order_by ne "" } {
-#			append sql "ORDER BY $lookup_order_by"
-#		}
-		if { $type1_db_table ne ""} {
-			append sql "ORDER BY ${type1_db_table}.sort_number,"
-		}
-		if { $lookup_order_by eq "" } {
-			append sql $field_name
+	if { $order_by eq {} } {		
+		if { $field_name eq "grinder_setting" } {
+			# TODO Include sorting in data dictionary!
+			append sql "ORDER BY TRIM($field_name)"
+		} elseif { $use_lookup_table == 1 }  {
+	#		if { $lookup_order_by ne "" } {
+	#			append sql "ORDER BY $lookup_order_by"
+	#		}
+			if { $type1_db_table ne ""} {
+				append sql "ORDER BY ${type1_db_table}.sort_number,"
+			}
+			if { $lookup_order_by eq "" } {
+				append sql $field_name
+			} else {
+				append sql $lookup_order_by
+			}
 		} else {
-			append sql $lookup_order_by
+			append sql "ORDER BY MAX(shot.clock) DESC"
 		}
 	} else {
-		append sql "ORDER BY MAX(shot.clock) DESC"
+		append sql "ORDER BY $order_by"
 	}
-	
+			
 	if { [llength $fields] == 1 } {
 		msg -INFO [namespace current] "$sql"
 		return [db eval "$sql"]
@@ -3212,6 +3216,12 @@ proc ::plugins::SDB::delete_shot_series_data {} {
 	set db [get_db]
 	db eval { DELETE FROM shot_series }
 }
+
+proc ::plugins::SDB::grinder_metadata {} {
+	set db [get_db]
+	db eval { DELETE FROM shot_series }
+}
+
 
 ### SDB CONFIGURATION PAGE ##########################################################################################
 
