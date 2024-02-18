@@ -5,7 +5,7 @@
 namespace eval ::plugins::SDB {
 	variable author "Enrique Bengoechea"
 	variable contact "enri.bengoechea@gmail.com"
-	variable version 1.24
+	variable version 1.25
 	variable github_repo ebengoechea/de1app_plugin_SDB
 	variable name [translate "Shot DataBase"]
 	variable description [translate "Keeps your shot history in a SQLite database, and provides functions to manage shot history files."]
@@ -1228,10 +1228,8 @@ proc ::plugins::SDB::load_shot { filename {read_series 1} {read_description 1} {
 		foreach field_name {steam_disabled steam_timeout hotwater_flow water_temperature \
 				water_volume flush_flow flush_seconds} {
 			if { [info exists file_sets($field_name)] } {
-msg "SDB LOAD_DATE, $field_name=$file_sets($field_name)"				
 				set shot_data($field_name) $file_sets($field_name)
 			} else {
-msg "SDB LOAD_DATE, $field_name=0"				
 				set shot_data($field_name) 0
 			}
 		}

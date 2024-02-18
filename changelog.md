@@ -2,6 +2,12 @@
 
 Format based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
+## [1.25] - 2024-02-18
+
+### Changed 
+ - Better handling of ``target_drink_weight``.
+ - Read flush settings variables ``flush_seconds`` and ``flush_flow`` from shots in ``proc load_shot``. Needed for DYE v2.42.
+
 ## [1.24] - 2024-01-22
 
 ### New
