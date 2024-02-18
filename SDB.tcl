@@ -1209,6 +1209,8 @@ proc ::plugins::SDB::load_shot { filename {read_series 1} {read_description 1} {
 		} elseif { [ifexists file_sets(final_desired_shot_weight) 0] > 0 } { 
 			set shot_data(target_drink_weight) [round_to_one_digits $file_sets(final_desired_shot_weight)]
 			msg "SDB::save_espresso_to_history_hook target_drink_weight=$shot_data(target_drink_weight) FROM final_desired_shot_weight"
+		} elseif { [return_zero_if_blank $file_sets(drink_weight)] > 0 }  {
+			set shot_data(target_drink_weight) $file_sets(drink_weight)
 		} else {
 			set shot_data(target_drink_weight) 0.0
 		}
@@ -1223,10 +1225,13 @@ proc ::plugins::SDB::load_shot { filename {read_series 1} {read_description 1} {
 	}
 
 	if { [string is true $read_workflow_settings] } {
-		foreach field_name {steam_disabled steam_timeout hotwater_flow water_temperature water_volume} {
+		foreach field_name {steam_disabled steam_timeout hotwater_flow water_temperature \
+				water_volume flush_flow flush_seconds} {
 			if { [info exists file_sets($field_name)] } {
+msg "SDB LOAD_DATE, $field_name=$file_sets($field_name)"				
 				set shot_data($field_name) $file_sets($field_name)
 			} else {
+msg "SDB LOAD_DATE, $field_name=0"				
 				set shot_data($field_name) 0
 			}
 		}
