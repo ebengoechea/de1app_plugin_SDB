@@ -2460,34 +2460,26 @@ proc ::plugins::SDB::save_espresso_to_history_hook { args } {
 	set target_drink_weight 0
 	if { $skin eq "DSx" && [info exists ::DSx_settings(saw)] && $::DSx_settings(saw) > 0 } {
 		set target_drink_weight [round_to_one_digits $::DSx_settings(saw)]
-		msg "SDB::save_espresso_to_history_hook target_drink_weight=$target_drink_weight FROM DSx SAW"
 	} elseif { $skin ne "MimojaCafe" && [info exists ::plugins::DYE::settings(next_drink_weight)] && 
 				$::plugins::DYE::settings(next_drink_weight) ne {} } {
 		set target_drink_weight $::plugins::DYE::settings(next_drink_weight)
-		msg "SDB::save_espresso_to_history_hook target_drink_weight=$target_drink_weight FROM DYE next_drink_weight"
 	} elseif { $::settings(settings_profile_type) eq "settings_2c" && 
 			$::settings(final_desired_shot_weight_advanced) > 0 } {
 		set target_drink_weight [round_to_one_digits $::settings(final_desired_shot_weight_advanced)]
-		msg "SDB::save_espresso_to_history_hook target_drink_weight=$target_drink_weight FROM final_desired_shot_weight_advanced"
 	} elseif { [ifexists ::settings(final_desired_shot_weight) 0] > 0 } { 
 		set target_drink_weight [round_to_one_digits $::settings(final_desired_shot_weight)]
-		msg "SDB::save_espresso_to_history_hook target_drink_weight=$target_drink_weight FROM final_desired_shot_weight"
 	} 
 	
 	# If no bluetooth scale, modify last shot's drink_weight to the target defined in the skin or in DYE
-	msg "SDB::save_espresso_to_history_hook INITIAL ::settings(drink_weight)=$::settings(drink_weight), ::de1(scale_weight)=$::de1(scale_weight), settings(next_drink_weight)=$::plugins::DYE::settings(next_drink_weight)"
 	set old_drink_weight [round_to_one_digits $::settings(drink_weight)]
 	if {$::settings(drink_weight) == 0 } {
 		if { [::device::scale::expecting_present] && $::de1(scale_weight) > 0 } {
 			set ::settings(drink_weight) [round_to_one_digits $::de1(scale_weight)]
-			msg "SDB::save_espresso_to_history_hook using ::settings(scale_weight) for the drink_weight"
 		} elseif { [info exists ::plugins::DYE::settings(next_drink_weight)] &&  
 						$::plugins::DYE::settings(next_drink_weight) ne {} } {
 			set ::settings(drink_weight) $::plugins::DYE::settings(next_drink_weight)
-			msg "SDB::save_espresso_to_history_hook using DYE next_drink_weight for the drink_weight"
 		} else {
 			set ::settings(drink_weight) $target_drink_weight
-			msg "SDB::save_espresso_to_history_hook using target_drink_weight for the drink_weight"
 		}
 	}
 	
