@@ -2,6 +2,11 @@
 
 Format based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
+## [1.26] - 2024-02-21
+
+### Changed 
+ - Remove forgotten debugging messages in ``save_espresso_to_history_hook`` that could produce a runtime error if running SDB without DYE. Reported by Alan Leung.
+
 ## [1.25] - 2024-02-18
 
 ### Changed 
