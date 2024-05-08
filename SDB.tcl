@@ -1405,7 +1405,7 @@ proc ::plugins::SDB::create { {recreate 0} {make_backup 1} {update_screen 0} } {
 		}
 	}
 	
-	borg toast [translate "Creating shots database"] 1
+	popup [translate "Creating shots database"] 1
 	dui say [translate "Creating shots database"] page_in
 	msg "Creating shots database"
 	
