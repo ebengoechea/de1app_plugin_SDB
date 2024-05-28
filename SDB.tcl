@@ -1366,6 +1366,8 @@ proc ::plugins::SDB::modify_shot_file { path arr_new_settings { backup_file {} }
 	}
 	if { $write_file == 1 } {
 		write_file $path $espresso_data
+        set fbasename [file rootname [file tail $path]]
+        shot::convert_legacy_to_v2 $path "[homedir]/history_v2" "${fbasename}.json" 0
 		msg "Updated past espresso history file $path"
 	}
 	
