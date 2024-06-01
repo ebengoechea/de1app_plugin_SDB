@@ -1407,7 +1407,7 @@ proc ::plugins::SDB::create { {recreate 0} {make_backup 1} {update_screen 0} } {
 		}
 	}
 	
-	borg toast [translate "Creating shots database"] 1
+	popup [translate_toast "Creating shots database"] 1
 	dui say [translate "Creating shots database"] page_in
 	msg "Creating shots database"
 	
@@ -1490,7 +1490,7 @@ proc ::plugins::SDB::upgrade { {update_screen 0} } {
 		if { $update_screen == 1 } {
 			update
 		} else {
-			borg toast $progress_msg 1
+			popup $progress_msg
 		}
 			
 		db eval {
@@ -1534,7 +1534,7 @@ proc ::plugins::SDB::upgrade { {update_screen 0} } {
 		if { $update_screen == 1 } {
 			update
 		} else {
-			borg toast $progress_msg 1
+			popup $progress_msg
 		}
 		rename_columns shot bean_weight grinder_dose_weight
 	}
@@ -1544,7 +1544,7 @@ proc ::plugins::SDB::upgrade { {update_screen 0} } {
 		if { $update_screen == 1 } {
 			update
 		} else {
-			borg toast $progress_msg 1
+			popup $progress_msg
 		}
 		catch { db eval { ALTER TABLE shot ADD COLUMN drinker_name TEXT} }
 		catch { db eval { ALTER TABLE shot ADD COLUMN removed INTEGER DEFAULT 0} }
@@ -1592,7 +1592,7 @@ proc ::plugins::SDB::upgrade { {update_screen 0} } {
 		if { $update_screen == 1 } {
 			update
 		} else {
-			borg toast $progress_msg 1
+			popup $progress_msg
 		}
 		
 		db eval {
@@ -1644,7 +1644,7 @@ proc ::plugins::SDB::upgrade { {update_screen 0} } {
 		if { $update_screen == 1 } {
 			update
 		} else {
-			borg toast $progress_msg 1
+			popup $progress_msg
 		}
 		
 		catch { db eval { ALTER TABLE shot ADD COLUMN workflow TEXT COLLATE NOCASE} }
@@ -1699,7 +1699,7 @@ proc ::plugins::SDB::upgrade { {update_screen 0} } {
 		if { $update_screen == 1 } {
 			update
 		} else {
-			borg toast $progress_msg 1
+			popup $progress_msg
 		}
 		
 		catch { db eval { ALTER TABLE shot ADD COLUMN bean_country TEXT COLLATE NOCASE} }
@@ -2049,7 +2049,7 @@ proc ::plugins::SDB::populate { {persist_desc {}} { persist_series {}} {update_s
 	if { $update_screen == 1 } { 
 		update 		
 	} else {
-		borg toast $progress_msg 1
+		popup $progress_msg
 	}
 	
 	foreach f $files {
@@ -2124,7 +2124,7 @@ proc ::plugins::SDB::populate { {persist_desc {}} { persist_series {}} {update_s
 			if { $update_screen == 1 } { 
 				update
 			} else {
-				borg toast $progress_msg 1
+				popup $progress_msg
 			}
 		}
 	}
@@ -2199,7 +2199,7 @@ proc ::plugins::SDB::populate { {persist_desc {}} { persist_series {}} {update_s
 			if { $update_screen == 1 } { 
 				update 
 			} else {
-				borg toast $progress_msg 1
+				popup $progress_msg
 			}
 		}
 	}
@@ -2222,7 +2222,7 @@ proc ::plugins::SDB::populate { {persist_desc {}} { persist_series {}} {update_s
 	if { $update_screen == 1} {
 		update
 	} else {
-		borg toast $progress_msg 1
+		popup $progress_msg
 	}
 #	after 3000 { set progress_msg "" } 
 	
